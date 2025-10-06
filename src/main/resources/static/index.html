@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat MVP - Frontend Simples</title>
+</head>
+<body>
+<h1>Chat MVP (Spring Boot + WebSocket)</h1>
+<div style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll;" id="chat-messages">
+</div>
+<br>
+<input type="text" id="message-input" placeholder="Digite sua mensagem aqui...">
+<button onclick="sendMessage()">Enviar</button>
+
+<hr>
+<p>Conectado como: <b id="sender-info">cliente1</b> | Empresa: <b id="tenant-info">empresa1</b> | Conversa: <b id="conv-info">suporte</b></p>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
+
+<script>
+    // --- CONFIGURAÇÃO ---
+    const API_URL = 'http://localhost:8080/ws';
+    const TENANT_ID = 'empresa1'; // HARDCODE PARA TESTE
+    const CONVERSATION_ID = 'suporte'; // HARDCODE PARA TESTE
+    const SENDER_ID = 'cliente1'; // HARDCODE PARA TESTE
+
+    let stompClient = null;
+
+    // --- FUNÇÕES DE CONEXÃO ---
+    function connect() {
+        const socket = new SockJS(API_URL);
+        stompClient = Stomp.over(socket);
+
+        // Conecta ao servidor (sem headers de auth por enquanto)
+        stompClient.connect({}, (frame) => {
+            console.log('Conectado: ' + frame);
+
+            // 1. SUBSCREVE no tópico da conversa
+            const topic = `/topic/${TENANT_ID}/${CONVERSATION_ID}`;
+            stompClient.subscribe(topic, onMessageReceived);
+            console.log(`Subscrito no tópico: ${topic}`);
+        }, onError);
+    }
+
+    function onError(error) {
+        console.error('Erro de Conexão STOMP: ' + error);
+        // Lógica de reconexão viria aqui
+    }
+
+    // --- FUNÇÃO DE ENVIO ---
+    function sendMessage() {
+        const input = document.getElementById('message-input');
+        const content = input.value.trim();
+        input.value = ''; // Limpa o input
+
+        if (content && stompClient) {
+            const chatMessage = {
+                tenantId: TENANT_ID,
+                conversationId: CONVERSATION_ID,
+                senderId: SENDER_ID,
+                content: content
+            };
+
+            // 2. ENVIA a mensagem para o Controller
+            stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
+        }
+    }
+
+    // --- FUNÇÃO DE RECEBIMENTO ---
+    function onMessageReceived(message) {
+        const msg = JSON.parse(message.body);
+        const chatBox = document.getElementById('chat-messages');
+
+        // Cria um elemento para a nova mensagem
+        const messageElement = document.createElement('p');
+        messageElement.innerHTML = `[${msg.timestamp.substring(11, 19)}] <b>${msg.senderId}</b>: ${msg.content}`;
+
+        chatBox.appendChild(messageElement);
+        // Rola para o final
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Inicia a conexão ao carregar a página
+    connect();
+</script>
+</body>
+</html>
