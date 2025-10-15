@@ -12,6 +12,9 @@ import org.hibernate.event.spi.PreLoadEventListener;
 import org.hibernate.internal.SessionFactoryImpl;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 
 import java.util.Map;
 
@@ -20,20 +23,19 @@ public class HibernateFilterConfig implements HibernatePropertiesCustomizer {
 
     private final EntityManagerFactory entityManagerFactory;
 
-    public HibernateFilterConfig(EntityManagerFactory entityManagerFactory) {
+    public HibernateFilterConfig(@Lazy EntityManagerFactory entityManagerFactory) {
         this.entityManagerFactory = entityManagerFactory;
-        registerTenantFilter();
     }
 
-    private void registerTenantFilter() {
+    @EventListener(ContextRefreshedEvent.class)
+    public void registerTenantFilter() {
         SessionFactory sessionFactory = entityManagerFactory.unwrap(SessionFactory.class);
 
         if (sessionFactory instanceof SessionFactoryImpl sessionFactoryImpl) {
-
-            final EventListenerRegistry registry = sessionFactoryImpl.getServiceRegistry()
+            EventListenerRegistry registry = sessionFactoryImpl.getServiceRegistry()
                     .getService(EventListenerRegistry.class);
 
-            final TenantFilterEnabler listener = new TenantFilterEnabler();
+            TenantFilterEnabler listener = new TenantFilterEnabler();
 
             registry.getEventListenerGroup(EventType.POST_LOAD).appendListener(listener);
             registry.getEventListenerGroup(EventType.PRE_LOAD).appendListener(listener);
@@ -45,7 +47,6 @@ public class HibernateFilterConfig implements HibernatePropertiesCustomizer {
         private void enableTenantFilter(org.hibernate.Session session) {
             String tenantId = TenantContext.getCurrentTenant();
             if (tenantId != null) {
-
                 session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
             }
         }
