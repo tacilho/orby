@@ -1,6 +1,9 @@
-package com.orby.orby.admin.model;
+package com.orby.orby.ticket.model;
 
-import com.orby.orby.shared.model.Tenant;
+import com.orby.orby.admin.model.Operator;
+import com.orby.orby.admin.model.OperatorStatus;
+import com.orby.orby.admin.model.Sector;
+import com.orby.orby.admin.model.Client;
 import com.orby.orby.shared.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -17,24 +20,24 @@ public class SupportTicket extends TenantAwareEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Tenant tenantId;
+    @ManyToOne
+    @JoinColumn(name = "sector_id", nullable = false)
+    private Sector sector;
 
-    @Column(nullable = false)
-    private Sector sectorId;
+    @ManyToOne
+    @JoinColumn(name = "client_id", nullable = false)
+    private Client client;
 
-    //@Column(nullable = false)
-    //private Client clientId;
-
-    @Column(nullable = false)
-    private Operator operatorId;
+    @ManyToOne
+    @JoinColumn(name = "operator_id", nullable = false)
+    private Operator operator;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private OperatorStatus status = OperatorStatus.ONLINE;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime closedAt;
 }

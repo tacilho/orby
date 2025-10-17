@@ -1,7 +1,7 @@
-package com.orby.orby.admin.controller;
+package com.orby.orby.ticket.controller;
 
-import com.orby.orby.admin.model.SupportTicket;
-import com.orby.orby.admin.service.SupportTicketService;
+import com.orby.orby.ticket.model.SupportTicket;
+import com.orby.orby.ticket.service.SupportTicketService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
