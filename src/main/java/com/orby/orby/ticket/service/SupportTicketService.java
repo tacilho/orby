@@ -1,7 +1,7 @@
-package com.orby.orby.admin.service;
+package com.orby.orby.ticket.service;
 
-import com.orby.orby.admin.model.SupportTicket;
-import com.orby.orby.admin.repository.SupportTicketRepository;
+import com.orby.orby.ticket.model.SupportTicket;
+import com.orby.orby.ticket.repository.SupportTicketRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
