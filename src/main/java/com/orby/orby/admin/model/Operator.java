@@ -1,13 +1,11 @@
 package com.orby.orby.admin.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.orby.orby.shared.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 
 @Data
 @Entity
@@ -30,6 +28,7 @@ public class Operator extends TenantAwareEntity {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
