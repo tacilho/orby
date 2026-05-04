@@ -34,8 +34,17 @@ public class SupportTicketController {
     }
 
     @PostMapping
-    public ResponseEntity<SupportTicket> saveTicket(SupportTicket supportTicket) {
+    public ResponseEntity<SupportTicket> saveTicket(@RequestBody SupportTicket supportTicket) {
         var ticket = supportTicketService.save(supportTicket);
+        return ResponseEntity.ok(ticket);
+    }
+
+    @PutMapping("/{id}/transfer")
+    public ResponseEntity<SupportTicket> transferTicket(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) Long sectorId) {
+        var ticket = supportTicketService.transferTicket(id, operatorId, sectorId);
         return ResponseEntity.ok(ticket);
     }
 }
