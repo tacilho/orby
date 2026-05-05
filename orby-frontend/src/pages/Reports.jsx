@@ -1,341 +1,416 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { BarChart2, TrendingUp, Clock, CheckCircle2, Filter, Search, Calendar, User, Tag, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  BarChart2, TrendingUp, Clock, CheckCircle2, Search,
+  Download, Users, ArrowUpRight, ArrowDownRight,
+  Layers, Activity, FileText, Zap
+} from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import Select from '../components/Select';
+import './Reports.css';
 
-function CustomDatePicker({ label, value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
-  
-  // click outside to close
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const days = Array.from({length: 31}, (_, i) => i + 1);
-  const currentMonth = "Maio 2026"; // Mock estático para demonstração
-
-  const parseDate = (val) => val ? val.split(' ')[0] : '';
-  const parseTime = (val) => val && val.includes(' ') ? val.split(' ')[1] : '00:00';
-
-  const dateOnly = parseDate(value);
-  const timeOnly = parseTime(value);
+/* ── Pure-CSS Donut Chart ─────────────────────────────── */
+function DonutChart({ segments, total, label }) {
+  const size = 130;
+  const stroke = 14;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
 
   return (
-    <div className="form-group" style={{ position: 'relative', marginBottom: 0 }} ref={containerRef}>
-      <label className="form-label">{label}</label>
-      <div 
-        className="form-control" 
-        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: 'var(--bg-app)' }}
-        onClick={() => setOpen(!open)}
-      >
-        <Calendar size={16} style={{ color: 'var(--text-muted)' }} />
-        <span style={{ flex: 1, color: value ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-          {value || 'Selecionar data e hora...'}
-        </span>
+    <svg className="donut-chart" viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-active)" strokeWidth={stroke} />
+      {segments.map((seg, i) => {
+        const dash = (seg.pct / 100) * c;
+        const el = (
+          <circle
+            key={i}
+            cx={size / 2} cy={size / 2} r={r}
+            fill="none" stroke={seg.color} strokeWidth={stroke}
+            strokeDasharray={`${dash} ${c - dash}`}
+            strokeDashoffset={-offset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            style={{ transition: 'stroke-dasharray 0.8s ease, stroke-dashoffset 0.8s ease' }}
+          />
+        );
+        offset += dash;
+        return el;
+      })}
+      <text x="50%" y="46%" textAnchor="middle" className="donut-chart-center-text">{total}</text>
+      <text x="50%" y="58%" textAnchor="middle" className="donut-chart-center-label">{label}</text>
+    </svg>
+  );
+}
+
+/* ── Mock data generators ─────────────────────────────── */
+function useMockData(dateRange, tickets, ticketReasons) {
+  return useMemo(() => {
+    const multiplier = dateRange === '30d' ? 4 : dateRange === 'hoje' ? 0.3 : 1;
+
+    const totalTickets = Math.round(27 * multiplier);
+    const closedTickets = Math.round(22 * multiplier);
+    const openTickets = Math.round(3 * multiplier);
+    const waitingTickets = totalTickets - closedTickets - openTickets;
+    const avgTime = dateRange === 'hoje' ? '02m 48s' : dateRange === '30d' ? '05m 32s' : '04m 12s';
+
+    const dailyData = [
+      { label: 'Seg', value: Math.round(5 * multiplier), closed: Math.round(4 * multiplier) },
+      { label: 'Ter', value: Math.round(8 * multiplier), closed: Math.round(7 * multiplier) },
+      { label: 'Qua', value: Math.round(6 * multiplier), closed: Math.round(5 * multiplier) },
+      { label: 'Qui', value: Math.round(9 * multiplier), closed: Math.round(8 * multiplier) },
+      { label: 'Sex', value: Math.round(7 * multiplier), closed: Math.round(6 * multiplier) },
+      { label: 'Sáb', value: Math.round(3 * multiplier), closed: Math.round(3 * multiplier) },
+      { label: 'Dom', value: Math.round(1 * multiplier), closed: Math.round(1 * multiplier) },
+    ];
+
+    const maxDaily = Math.max(...dailyData.map(d => d.value), 1);
+
+    const sectors = [
+      { label: 'Suporte Técnico', value: 65, color: '#6390FF' },
+      { label: 'Financeiro', value: 25, color: '#F59E0B' },
+      { label: 'Comercial', value: 10, color: '#10B981' },
+    ];
+
+    const operators = [
+      { name: 'Você', tickets: Math.round(14 * multiplier), avgTime: '03m 22s', satisfaction: 96 },
+      { name: 'Carlos M.', tickets: Math.round(10 * multiplier), avgTime: '05m 10s', satisfaction: 91 },
+      { name: 'Ana P.', tickets: Math.round(6 * multiplier), avgTime: '04m 45s', satisfaction: 94 },
+    ];
+
+    const reasons = ticketReasons.map((r, i) => ({
+      label: r.title,
+      value: Math.max(2, Math.round((15 - i * 3) * multiplier)),
+    }));
+    const maxReason = Math.max(...reasons.map(r => r.value), 1);
+
+    const recentActivity = [
+      { time: '11:42', title: 'TCK-092 encerrado por Você', desc: 'Motivo: Suporte Técnico', color: 'var(--success)' },
+      { time: '11:30', title: 'TCK-095 criado', desc: 'Cliente: Nova Empresa Ltda.', color: '#6390FF' },
+      { time: '10:55', title: 'TCK-093 transferido para N2', desc: 'Operador: Carlos M.', color: 'var(--warning)' },
+      { time: '10:32', title: 'TCK-092 assumido por Você', desc: 'Setor: Suporte N1', color: '#A855F7' },
+      { time: '09:15', title: 'TCK-091 encerrado por Carlos M.', desc: 'Motivo: Financeiro', color: 'var(--success)' },
+    ];
+
+    return {
+      totalTickets, closedTickets, openTickets, waitingTickets, avgTime,
+      dailyData, maxDaily, sectors, operators, reasons, maxReason, recentActivity,
+    };
+  }, [dateRange, tickets, ticketReasons]);
+}
+
+/* ── Main Component ───────────────────────────────────── */
+function Reports() {
+  const { tickets, ticketReasons } = useAppContext();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dateRange, setDateRange] = useState('7d');
+  const [clientSearch, setClientSearch] = useState('');
+
+  const data = useMockData(dateRange, tickets, ticketReasons);
+
+  const dateOptions = [
+    { value: 'hoje', label: 'Hoje' },
+    { value: '7d', label: '7 dias' },
+    { value: '30d', label: '30 dias' },
+  ];
+
+  const tabs = [
+    { id: 'overview', label: 'Visão Geral', icon: <Layers size={15} /> },
+    { id: 'operators', label: 'Operadores', icon: <Users size={15} /> },
+    { id: 'activity', label: 'Atividade', icon: <Activity size={15} /> },
+  ];
+
+  return (
+    <div className="reports-page">
+      {/* Header */}
+      <div className="reports-header">
+        <div>
+          <h1>Relatórios</h1>
+        </div>
+        <div className="reports-header-actions">
+          <button className="btn">
+            <Download size={15} /> Exportar
+          </button>
+        </div>
       </div>
 
-      {open && (
-        <div style={{ 
-          position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-          width: '300px', marginTop: '0.5rem', 
-          background: 'var(--bg-app)', border: '1px solid var(--border-color)', 
-          borderRadius: 'var(--radius-md)', padding: '1.25rem', zIndex: 1050,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, marginBottom: '1rem' }}>
-            <button type="button" className="btn" style={{ padding: '0.2rem', border: 'none' }}><ChevronLeft size={16} /></button>
-            <span>{currentMonth}</span>
-            <button type="button" className="btn" style={{ padding: '0.2rem', border: 'none' }}><ChevronRight size={16} /></button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: 600 }}>
-            <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
-            {/* Blank spaces for 1st day of May 2026 (Friday) */}
-            <div/><div/><div/><div/><div/>
-            {days.map(d => {
-              const dStr = `${d.toString().padStart(2, '0')}/05/2026`;
-              const isSelected = dateOnly === dStr;
-              return (
-                <button 
-                  key={d} 
-                  type="button"
-                  style={{ 
-                    padding: '0.4rem 0', border: 'none', 
-                    background: isSelected ? 'var(--accent-color)' : 'transparent', 
-                    color: isSelected ? 'var(--accent-text)' : 'var(--text-primary)',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    fontSize: '0.85rem'
-                  }}
-                  onClick={() => onChange(`${dStr} ${timeOnly}`)}
-                >
-                  {d}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: 500 }}>Horário</div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input 
-                type="time" 
-                className="form-control" 
-                value={timeOnly} 
-                onChange={(e) => {
-                  const newTime = e.target.value || '00:00';
-                  onChange(`${dateOnly || '01/05/2026'} ${newTime}`);
-                }} 
-              />
-            </div>
-            <button type="button" className="btn primary" style={{ width: '100%', marginTop: '1rem' }} onClick={() => setOpen(false)}>
-              Confirmar
+      {/* Tabs */}
+      <div className="reports-tabs">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`reports-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="reports-filter-bar">
+        <div className="filter-group">
+          <span className="filter-label">Período:</span>
+          {dateOptions.map(opt => (
+            <button
+              key={opt.value}
+              className={`filter-chip ${dateRange === opt.value ? 'active' : ''}`}
+              onClick={() => setDateRange(opt.value)}
+            >
+              {opt.label}
             </button>
-          </div>
+          ))}
         </div>
-      )}
+        <div className="filter-search">
+          <Search size={13} />
+          <input
+            type="text"
+            placeholder="Buscar cliente..."
+            value={clientSearch}
+            onChange={(e) => setClientSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && <OverviewTab data={data} />}
+      {activeTab === 'operators' && <OperatorsTab data={data} />}
+      {activeTab === 'activity' && <ActivityTab data={data} />}
     </div>
   );
 }
 
-function Reports() {
-  const { tickets, ticketReasons } = useAppContext();
+/* ── Overview Tab ─────────────────────────────────────── */
+function OverviewTab({ data }) {
+  const metrics = [
+    { label: 'Total de Atendimentos', value: data.totalTickets, change: '+12%', positive: true, icon: <BarChart2 size={14} />, colorClass: 'blue' },
+    { label: 'Encerrados', value: data.closedTickets, change: '+8%', positive: true, icon: <CheckCircle2 size={14} />, colorClass: 'green' },
+    { label: 'Em Andamento', value: data.openTickets, change: '-3%', positive: true, icon: <Zap size={14} />, colorClass: 'amber' },
+    { label: 'Tempo Médio', value: data.avgTime, change: '-15%', positive: true, icon: <Clock size={14} />, colorClass: 'purple', isMono: true },
+  ];
 
-  const [dateRange, setDateRange] = useState('7d');
-  const [operatorFilter, setOperatorFilter] = useState('');
-  const [reasonFilter, setReasonFilter] = useState('');
-  const [clientSearch, setClientSearch] = useState('');
-
-  const [showCustomDateModal, setShowCustomDateModal] = useState(false);
-  const [customDate, setCustomDate] = useState({ start: '', end: '' });
-
-  const handleDateChange = (val) => {
-    if (val === 'custom') {
-      setShowCustomDateModal(true);
-    } else {
-      setDateRange(val);
-    }
-  };
-
-  // Lógica mockada de filtros (no mundo real faria fetch na API)
-  const filteredTickets = tickets.filter(t => {
-    if (operatorFilter && t.operator !== operatorFilter && operatorFilter !== 'todos') return false;
-    if (clientSearch && !t.clientName.toLowerCase().includes(clientSearch.toLowerCase()) && !t.clientEmail.toLowerCase().includes(clientSearch.toLowerCase())) return false;
-    return true;
-  });
-
-  const totalTickets = filteredTickets.length + (dateRange === '30d' ? 120 : dateRange === 'hoje' ? 5 : 24);
-  const closedTickets = filteredTickets.filter(t => t.status === 'closed').length + (dateRange === '30d' ? 105 : dateRange === 'hoje' ? 3 : 21);
-  const openTickets = filteredTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+  const donutSegments = [
+    { pct: 56, color: 'var(--success)', label: 'Encerrados' },
+    { pct: 32, color: '#6390FF', label: 'Em andamento' },
+    { pct: 12, color: 'var(--warning)', label: 'Aguardando' },
+  ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-        <div>
-          <h1>Relatórios e Métricas</h1>
-          <p>Acompanhe o desempenho da sua equipe e os principais motivos de contato.</p>
-        </div>
-        <button className="btn primary">
-          <Filter size={16} /> Exportar CSV
-        </button>
+    <>
+      {/* Metric Cards */}
+      <div className="metrics-grid">
+        {metrics.map((m, i) => (
+          <div className="metric-card" key={i}>
+            <div className="metric-card-label">
+              <div className={`metric-card-icon ${m.colorClass}`}>{m.icon}</div>
+              {m.label}
+            </div>
+            <div className={`metric-card-value ${m.isMono ? 'mono' : ''}`}>{m.value}</div>
+            <span className={`metric-card-change ${m.positive ? 'positive' : 'negative'}`}>
+              {m.positive ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+              {m.change}
+            </span>
+          </div>
+        ))}
       </div>
 
-      <div className="panel" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-          <Filter size={18} /> Filtros de Relatório
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Período</label>
-            <Select 
-              value={dateRange === 'custom' ? 'custom' : dateRange} 
-              onChange={handleDateChange} 
-              options={[
-                { value: 'hoje', label: 'Hoje' },
-                { value: '7d', label: 'Últimos 7 dias' },
-                { value: '30d', label: 'Últimos 30 dias' },
-                { value: 'custom', label: dateRange === 'custom' ? `Personalizado (${customDate.start ? 'Ativo' : '...'})` : 'Personalizado...' }
-              ]} 
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Atendente</label>
-            <Select 
-              value={operatorFilter} 
-              onChange={setOperatorFilter} 
-              options={[
-                { value: 'todos', label: 'Todos os Operadores' },
-                { value: 'Você', label: 'Você' },
-                { value: 'Carlos M.', label: 'Carlos M.' }
-              ]} 
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Motivo (Tipificação)</label>
-            <Select 
-              value={reasonFilter} 
-              onChange={setReasonFilter} 
-              options={[
-                { value: 'todos', label: 'Todos os Motivos' },
-                ...ticketReasons.map(r => ({ value: r.id, label: r.title }))
-              ]} 
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cliente</label>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="Buscar nome ou e-mail..." 
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                style={{ paddingLeft: '2rem' }}
-              />
+      {/* Charts */}
+      <div className="charts-grid">
+        {/* Bar Chart - Daily Volume */}
+        <div className="chart-panel">
+          <div className="chart-panel-header">
+            <div>
+              <div className="chart-panel-title">Volume Diário</div>
+              <div className="chart-panel-subtitle">Atendimentos por dia da semana</div>
             </div>
           </div>
+          <div className="bar-chart">
+            {data.dailyData.map((d, i) => (
+              <div className="bar-chart-col" key={i}>
+                <div
+                  className="bar-chart-bar"
+                  style={{
+                    height: `${Math.max(4, (d.value / data.maxDaily) * 100)}%`,
+                    background: `linear-gradient(180deg, #6390FF, rgba(99,144,255,0.4))`,
+                  }}
+                >
+                  <span className="bar-tooltip">{d.value} atend.</span>
+                </div>
+                <span className="bar-chart-label">{d.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        </div>
-      </div>
-
-      <div className="dashboard-grid" style={{ marginBottom: '2rem' }}>
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <BarChart2 size={16} /> Total de Atendimentos
+        {/* Donut Chart - Status Distribution */}
+        <div className="chart-panel">
+          <div className="chart-panel-header">
+            <div>
+              <div className="chart-panel-title">Distribuição por Status</div>
+              <div className="chart-panel-subtitle">Chamados no período</div>
+            </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 600 }}>{totalTickets}</div>
-        </div>
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CheckCircle2 size={16} /> Chamados Encerrados
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--success)' }}>{closedTickets}</div>
-        </div>
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <TrendingUp size={16} /> Em Atendimento
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--warning)' }}>{openTickets}</div>
-        </div>
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Clock size={16} /> Tempo Médio (Espera)
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 600 }} className="mono">04m 12s</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-        <div className="panel">
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Principais Motivos de Contato</h2>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Motivo (Tipificação)</th>
-                <th style={{ textAlign: 'right' }}>Quantidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ticketReasons.map((reason, index) => (
-                <tr key={reason.id}>
-                  <td>{reason.title}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 500 }} className="mono">{Math.max(2, 15 - index * 3)}</td>
-                </tr>
+          <div className="donut-chart-container">
+            <DonutChart segments={donutSegments} total={data.totalTickets} label="total" />
+            <div className="donut-legend">
+              {donutSegments.map((seg, i) => (
+                <div className="donut-legend-item" key={i}>
+                  <div className="donut-legend-dot" style={{ background: seg.color }} />
+                  <span className="donut-legend-label">{seg.label}</span>
+                  <span className="donut-legend-value">{seg.pct}%</span>
+                </div>
               ))}
-              {ticketReasons.length === 0 && (
-                <tr>
-                  <td colSpan="2" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum motivo de chamado encerrado foi registrado ainda.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="panel">
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Volume por Setor</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                <span style={{ fontWeight: 500 }}>Suporte Técnico</span>
-                <span className="mono">65%</span>
-              </div>
-              <div style={{ width: '100%', height: '8px', background: 'var(--bg-active)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '65%', height: '100%', background: 'var(--accent-color)' }}></div>
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                <span style={{ fontWeight: 500 }}>Financeiro e Faturamento</span>
-                <span className="mono">25%</span>
-              </div>
-              <div style={{ width: '100%', height: '8px', background: 'var(--bg-active)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '25%', height: '100%', background: 'var(--warning)' }}></div>
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                <span style={{ fontWeight: 500 }}>Comercial / Vendas</span>
-                <span className="mono">10%</span>
-              </div>
-              <div style={{ width: '100%', height: '8px', background: 'var(--bg-active)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '10%', height: '100%', background: 'var(--success)' }}></div>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {showCustomDateModal && (
-        <div className="modal-overlay" style={{ zIndex: 1000 }}>
-          <div className="modal-content" style={{ maxWidth: '440px' }}>
-            <div className="modal-header">
-              <h2>Período Personalizado</h2>
-              <button className="close-btn" onClick={() => { setShowCustomDateModal(false); if(dateRange !== 'custom') setDateRange('7d'); }}>
-                <X size={18} />
-              </button>
+      {/* Bottom Section */}
+      <div className="bottom-grid">
+        {/* Reasons */}
+        <div className="chart-panel">
+          <div className="chart-panel-header">
+            <div>
+              <div className="chart-panel-title">Motivos de Contato</div>
+              <div className="chart-panel-subtitle">Tipificação dos chamados encerrados</div>
             </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if(!customDate.start || !customDate.end) {
-                alert('Preencha a data inicial e final.');
-                return;
-              }
-              setDateRange('custom');
-              setShowCustomDateModal(false);
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
-                <CustomDatePicker 
-                  label="Data e Hora Inicial" 
-                  value={customDate.start} 
-                  onChange={(val) => setCustomDate({...customDate, start: val})} 
-                />
-                <CustomDatePicker 
-                  label="Data e Hora Final" 
-                  value={customDate.end} 
-                  onChange={(val) => setCustomDate({...customDate, end: val})} 
-                />
+          </div>
+          {data.reasons.length > 0 ? (
+            <div className="hbar-list">
+              {data.reasons.map((r, i) => {
+                const colors = ['#6390FF', '#A855F7', '#F59E0B', '#10B981', '#F43F5E'];
+                return (
+                  <div className="hbar-item" key={i}>
+                    <div className="hbar-item-header">
+                      <span className="hbar-item-label">{r.label}</span>
+                      <span className="hbar-item-value">{r.value}</span>
+                    </div>
+                    <div className="hbar-track">
+                      <div
+                        className="hbar-fill"
+                        style={{
+                          width: `${(r.value / data.maxReason) * 100}%`,
+                          background: colors[i % colors.length],
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <FileText size={32} />
+              <p>Nenhum motivo registrado.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Sectors */}
+        <div className="chart-panel">
+          <div className="chart-panel-header">
+            <div>
+              <div className="chart-panel-title">Volume por Setor</div>
+              <div className="chart-panel-subtitle">Distribuição dos atendimentos</div>
+            </div>
+          </div>
+          <div className="hbar-list">
+            {data.sectors.map((s, i) => (
+              <div className="hbar-item" key={i}>
+                <div className="hbar-item-header">
+                  <span className="hbar-item-label">{s.label}</span>
+                  <span className="hbar-item-value">{s.value}%</span>
+                </div>
+                <div className="hbar-track">
+                  <div className="hbar-fill" style={{ width: `${s.value}%`, background: s.color }} />
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button type="button" className="btn" onClick={() => { setShowCustomDateModal(false); if(dateRange !== 'custom') setDateRange('7d'); }}>Cancelar</button>
-                <button type="submit" className="btn primary">Aplicar Filtro</button>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
-      )}
+      </div>
+    </>
+  );
+}
+
+/* ── Operators Tab ────────────────────────────────────── */
+function OperatorsTab({ data }) {
+  const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const positionClass = (i) => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'default';
+
+  return (
+    <div className="chart-panel" style={{ marginBottom: '1.75rem' }}>
+      <div className="chart-panel-header">
+        <div>
+          <div className="chart-panel-title">Desempenho por Operador</div>
+          <div className="chart-panel-subtitle">Ranking baseado no volume e tempo de resposta</div>
+        </div>
+      </div>
+      <table className="ranking-table">
+        <thead>
+          <tr>
+            <th style={{ width: '40px' }}>#</th>
+            <th>Operador</th>
+            <th>Chamados</th>
+            <th>Tempo Médio</th>
+            <th>Satisfação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.operators.map((op, i) => (
+            <tr key={i}>
+              <td>
+                <span className={`ranking-position ${positionClass(i)}`}>{i + 1}</span>
+              </td>
+              <td>
+                <div className="operator-cell">
+                  <div className="operator-avatar">{getInitials(op.name)}</div>
+                  <span>{op.name}</span>
+                </div>
+              </td>
+              <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{op.tickets}</td>
+              <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{op.avgTime}</td>
+              <td>
+                <span style={{
+                  color: op.satisfaction >= 95 ? 'var(--success)' : op.satisfaction >= 90 ? 'var(--warning)' : 'var(--danger)',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.8rem',
+                }}>
+                  {op.satisfaction}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ── Activity Tab ─────────────────────────────────────── */
+function ActivityTab({ data }) {
+  return (
+    <div className="activity-section">
+      <div className="chart-panel-header">
+        <div>
+          <div className="chart-panel-title">Atividade Recente</div>
+          <div className="chart-panel-subtitle">Últimas ações do sistema</div>
+        </div>
+      </div>
+      <div className="activity-list">
+        {data.recentActivity.map((item, i) => (
+          <div className="activity-item" key={i}>
+            <span className="activity-time">{item.time}</span>
+            <div className="activity-dot-col">
+              <div className="activity-dot" style={{ background: item.color }} />
+              {i < data.recentActivity.length - 1 && <div className="activity-line" />}
+            </div>
+            <div className="activity-content">
+              <div className="activity-content-title">{item.title}</div>
+              <div className="activity-content-desc">{item.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

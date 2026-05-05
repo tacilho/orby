@@ -18,20 +18,20 @@ function Select({ value, onChange, options, placeholder = "Selecione...", requir
   const selectedOption = options.find(opt => opt.value === value) || null;
 
   return (
-    <div className="custom-select-container" ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Hidden input to support required form validation if needed */}
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       {required && (
         <input 
           type="text" 
           value={value || ''} 
           onChange={() => {}} 
           required 
-          style={{ opacity: 0, position: 'absolute', top: '50%', left: '50%', height: 0, width: 0, padding: 0, margin: 0, border: 'none' }} 
+          tabIndex={-1}
+          style={{ opacity: 0, position: 'absolute', top: '50%', left: '50%', height: 0, width: 0, padding: 0, margin: 0, border: 'none', pointerEvents: 'none' }} 
         />
       )}
       
       <div 
-        className={`form-control ${isOpen ? 'focus' : ''}`}
+        className="form-control"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -49,27 +49,35 @@ function Select({ value, onChange, options, placeholder = "Selecione...", requir
         }}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span style={{ color: selectedOption ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+        <span style={{ color: selectedOption ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.875rem' }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown size={16} style={{ color: 'var(--text-secondary)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+        <ChevronDown 
+          size={14} 
+          style={{ 
+            color: 'var(--text-muted)', 
+            transform: isOpen ? 'rotate(180deg)' : 'none', 
+            transition: 'transform 0.2s ease',
+            flexShrink: 0
+          }} 
+        />
       </div>
       
       {isOpen && (
         <div 
-          className="custom-select-dropdown"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
             left: 0,
             right: 0,
-            background: 'var(--bg-app)',
+            background: 'var(--bg-panel)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-sm)',
-            boxShadow: 'var(--shadow-md)',
+            boxShadow: 'var(--shadow-lg)',
             zIndex: 50,
             maxHeight: '200px',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            animation: 'fadeIn 0.15s ease-out'
           }}
         >
           {options.map((opt) => (
@@ -78,9 +86,11 @@ function Select({ value, onChange, options, placeholder = "Selecione...", requir
               style={{
                 padding: '0.5rem 0.75rem',
                 cursor: 'pointer',
-                fontSize: '0.875rem',
+                fontSize: '0.8125rem',
                 color: value === opt.value ? 'var(--text-primary)' : 'var(--text-secondary)',
                 background: value === opt.value ? 'var(--bg-active)' : 'transparent',
+                fontWeight: value === opt.value ? 500 : 400,
+                transition: 'background 0.1s ease',
               }}
               onClick={() => {
                 if (onChange) onChange(opt.value);
@@ -97,7 +107,7 @@ function Select({ value, onChange, options, placeholder = "Selecione...", requir
             </div>
           ))}
           {options.length === 0 && (
-            <div style={{ padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            <div style={{ padding: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8125rem', textAlign: 'center' }}>
               Nenhuma opção disponível
             </div>
           )}

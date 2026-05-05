@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Users, Settings, Activity, Hexagon, PanelLeftClose, PanelLeftOpen, BarChart2 } from 'lucide-react';
+import { MessageSquare, Users, Settings, Hexagon, PanelLeftClose, PanelLeftOpen, BarChart2, LayoutList } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Chat from './pages/Chat';
 import Team from './pages/Team';
@@ -25,59 +25,59 @@ function Sidebar() {
     });
   };
 
+  const navItems = [
+    { path: '/', label: 'Chamados', icon: LayoutList, exact: true },
+    { path: '/chat', label: 'Atendimento', icon: MessageSquare },
+    { path: '/team', label: 'Equipe', icon: Users, exact: true },
+    { path: '/reports', label: 'Relatórios', icon: BarChart2, exact: true },
+    { path: '/settings', label: 'Configurações', icon: Settings, exact: true },
+  ];
+
+  const isActive = (item) => {
+    if (item.exact) return location.pathname === item.path;
+    return location.pathname.includes(item.path);
+  };
+
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {/* Brand / Logo — aligned with nav icons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem' }}>
           <div className="brand-icon">
-            <Hexagon size={18} />
+            <Hexagon size={16} />
           </div>
-          <span className="brand-text">{brandName}</span>
+          {!isCollapsed && (
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.02em', color: 'var(--text-primary)', flex: 1 }}>
+              {brandName}
+            </span>
+          )}
         </div>
-        <button className="sidebar-toggle" onClick={toggleSidebar} title={isCollapsed ? "Expandir" : "Minimizar"}>
-          {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        <button
+          className="sidebar-toggle"
+          onClick={toggleSidebar}
+          title={isCollapsed ? 'Expandir' : 'Minimizar'}
+          style={{ marginLeft: isCollapsed ? 'auto' : '0.75rem', marginRight: isCollapsed ? 'auto' : 0 }}
+        >
+          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
       </div>
       
       <nav className="sidebar-nav">
-        <Link to="/" className={`nav-item ${location.pathname === '/' ? 'active' : ''}`} title={isCollapsed ? "Dashboard" : ""}>
-          <LayoutDashboard size={18} />
-          <span className="nav-text">Dashboard</span>
-        </Link>
-        <Link to="/chat" className={`nav-item ${location.pathname.includes('/chat') ? 'active' : ''}`} title={isCollapsed ? "Atendimento" : ""}>
-          <MessageSquare size={18} />
-          <span className="nav-text">Atendimento</span>
-        </Link>
-        <Link to="/team" className={`nav-item ${location.pathname === '/team' ? 'active' : ''}`} title={isCollapsed ? "Equipe" : ""}>
-          <Users size={18} />
-          <span className="nav-text">Equipe</span>
-        </Link>
-        <Link to="/reports" className={`nav-item ${location.pathname === '/reports' ? 'active' : ''}`} title={isCollapsed ? "Relatórios" : ""}>
-          <BarChart2 size={18} />
-          <span className="nav-text">Relatórios</span>
-        </Link>
-        <Link to="/settings" className={`nav-item ${location.pathname === '/settings' ? 'active' : ''}`} title={isCollapsed ? "Configurações" : ""}>
-          <Settings size={18} />
-          <span className="nav-text">Configurações</span>
-        </Link>
+        {navItems.map(item => {
+          const Icon = item.icon;
+          return (
+            <Link 
+              key={item.path}
+              to={item.path} 
+              className={`nav-item ${isActive(item) ? 'active' : ''}`} 
+              title={isCollapsed ? item.label : ''}
+            >
+              <Icon size={17} />
+              {!isCollapsed && <span className="nav-text">{item.label}</span>}
+            </Link>
+          );
+        })}
       </nav>
-      
-      <div className="sidebar-footer" style={{ 
-        marginTop: 'auto', 
-        padding: '1rem', 
-        background: 'rgba(255,255,255,0.03)', 
-        borderRadius: 'var(--radius-sm)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        border: '1px solid var(--border-color)'
-      }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)' }} title="Online"></div>
-        <div className="status-text" style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>Sistema Online</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Versão 2.0.0</span>
-        </div>
-      </div>
     </aside>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ArrowRightLeft, X, User, CheckCircle2, Lock, Mail, CreditCard, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText } from 'lucide-react';
+import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText, History } from 'lucide-react';
 import Select from '../components/Select';
 import { useAppContext } from '../context/AppContext';
 
@@ -34,6 +34,7 @@ function Chat() {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ type: null, id: null, title: null });
+  const [historyConversation, setHistoryConversation] = useState(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferSector, setTransferSector] = useState('');
   const [transferOperator, setTransferOperator] = useState('');
@@ -90,7 +91,6 @@ function Chat() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: '1.5rem' }}>
         <h1>Atendimento</h1>
-        <p>Acompanhe e responda as mensagens dos seus clientes.</p>
       </div>
 
       <div className="chat-container">
@@ -156,7 +156,7 @@ function Chat() {
                   {!isTransferred && (
                     <>
                       <button className={`btn ${showNotesModal ? 'primary' : ''}`} title="Notas Internas" onClick={() => setShowNotesModal(true)}>
-                        <Lock size={16} />
+                        <NotebookPen size={16} />
                       </button>
                       <button className={`btn ${showCannedModal ? 'primary' : ''}`} title="Respostas Rápidas" onClick={() => setShowCannedModal(true)}>
                         <Zap size={16} />
@@ -255,45 +255,68 @@ function Chat() {
         </div>
 
         {activeTicket && showClientInfo && (
-          <div className="panel-slide-in" style={{ width: '280px', borderLeft: '1px solid var(--border-color)', background: 'var(--bg-panel)', padding: '1.5rem', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5rem' }}>Detalhes do Cliente</h3>
+          <div className="panel-slide-in" style={{ width: '300px', borderLeft: '1px solid var(--border-color)', background: 'var(--bg-panel)', padding: '1.25rem', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: '1.25rem' }}>Informações do Cliente</h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <User size={14} /> NOME
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  <User size={11} /> Cliente
                 </div>
-                <div style={{ fontWeight: 600 }}>{activeTicket.clientName}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{activeTicket.clientName}</div>
               </div>
 
               <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Mail size={14} /> E-MAIL
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  <User size={11} /> Contato
                 </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{activeTicket.clientEmail}</div>
+                <div style={{ fontSize: '0.875rem' }}>{activeTicket.contactName || '—'}</div>
               </div>
 
               <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <CreditCard size={14} /> PLANO ATUAL
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  <Mail size={11} /> E-mail
                 </div>
-                <div><span className="badge blue">{activeTicket.clientPlan}</span></div>
+                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{activeTicket.clientEmail || '—'}</div>
               </div>
 
               <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Clock size={14} /> TEMPO DE ESPERA
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  <Phone size={11} /> Telefone
                 </div>
-                <div className="mono" style={{ color: 'var(--text-secondary)' }}>12 min</div>
+                <div style={{ fontSize: '0.875rem' }}>{activeTicket.clientPhone || '—'}</div>
               </div>
             </div>
             
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '2rem 0' }} />
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '1.25rem 0' }} />
             
-            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1rem' }}>Histórico</h3>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Nenhum ticket anterior encontrado para este cliente.
-            </div>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <History size={12} /> Histórico
+            </h3>
+            {activeTicket.history && activeTicket.history.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                {activeTicket.history.map((h, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setHistoryConversation(h)}
+                    style={{ padding: '0.625rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-app)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span className="mono" style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{h.ticketId}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{h.date}</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{h.sector}</span>
+                      <span>{h.operator}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Nenhum atendimento anterior.</div>
+            )}
           </div>
         )}
       </div>
@@ -346,136 +369,115 @@ function Chat() {
 
       {showCannedModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div className="modal-header">
-              <h2>{editingCanned ? (editingCanned.id === 'new' ? 'Nova Resposta' : 'Editar Resposta') : 'Respostas Rápidas'}</h2>
-              <button className="close-btn" onClick={() => { setShowCannedModal(false); setEditingCanned(null); }}>
-                <X size={18} />
-              </button>
+          <div className="modal-content" style={{ maxWidth: '520px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Zap size={16} style={{ color: 'var(--info)' }} />
+                <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{editingCanned ? (editingCanned.id === 'new' ? 'Nova Resposta' : 'Editar Resposta') : 'Respostas Rápidas'}</h2>
+              </div>
+              <button className="close-btn" onClick={() => { setShowCannedModal(false); setEditingCanned(null); }}><X size={18} /></button>
             </div>
             
-            {editingCanned ? (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!editingCanned.title || !editingCanned.text) return;
-                if (editingCanned.id === 'new') {
-                  addCannedResponse(editingCanned.title, editingCanned.text);
-                } else {
-                  editCannedResponse(editingCanned.id, editingCanned.title, editingCanned.text);
-                }
-                setEditingCanned(null);
-              }}>
-                <div className="form-group">
-                  <label className="form-label">Título</label>
-                  <input type="text" className="form-control" value={editingCanned.title} onChange={e => setEditingCanned({...editingCanned, title: e.target.value})} autoFocus required />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Mensagem</label>
-                  <textarea className="form-control" rows={4} value={editingCanned.text} onChange={e => setEditingCanned({...editingCanned, text: e.target.value})} required style={{ resize: 'vertical' }}></textarea>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' }}>
-                  <button type="button" className="btn" onClick={() => setEditingCanned(null)}>Voltar</button>
-                  <button type="submit" className="btn primary">Salvar Resposta</button>
-                </div>
-              </form>
-            ) : (
-              <>
-                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className="btn primary" onClick={() => setEditingCanned({ id: 'new', title: '', text: '' })} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                    <Plus size={14} /> Nova Resposta
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {cannedResponses.map(canned => (
-                    <div key={canned.id} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-app)' }}>
-                      <div style={{ flex: 1, marginRight: '1rem', cursor: 'pointer' }} onClick={() => { setInput(canned.text); setShowCannedModal(false); }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>{canned.title}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{canned.text}</div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+              {editingCanned ? (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!editingCanned.title || !editingCanned.text) return;
+                  if (editingCanned.id === 'new') addCannedResponse(editingCanned.title, editingCanned.text);
+                  else editCannedResponse(editingCanned.id, editingCanned.title, editingCanned.text);
+                  setEditingCanned(null);
+                }}>
+                  <div className="form-group"><label className="form-label">Título</label><input type="text" className="form-control" value={editingCanned.title} onChange={e => setEditingCanned({...editingCanned, title: e.target.value})} autoFocus required /></div>
+                  <div className="form-group"><label className="form-label">Mensagem</label><textarea className="form-control" rows={3} value={editingCanned.text} onChange={e => setEditingCanned({...editingCanned, text: e.target.value})} required></textarea></div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
+                    <button type="button" className="btn" onClick={() => setEditingCanned(null)}>Voltar</button>
+                    <button type="submit" className="btn primary">Salvar</button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                    <button className="btn primary" onClick={() => setEditingCanned({ id: 'new', title: '', text: '' })} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}><Plus size={13} /> Nova Resposta</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {cannedResponses.map(canned => (
+                      <div key={canned.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--bg-app)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                        onClick={() => { setInput(canned.text); setShowCannedModal(false); }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                        <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'rgba(99,144,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Zap size={13} style={{ color: 'var(--info)' }} /></div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.8125rem', marginBottom: '0.125rem' }}>{canned.title}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{canned.text}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                          <button className="btn" style={{ padding: '0.25rem' }} onClick={() => setEditingCanned(canned)} title="Editar"><Edit2 size={13} /></button>
+                          <button className="btn danger" style={{ padding: '0.25rem' }} onClick={() => setDeleteConfirm({ type: 'canned', id: canned.id, title: canned.title })} title="Excluir"><Trash2 size={13} /></button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button className="btn" style={{ padding: '0.4rem' }} onClick={() => setEditingCanned(canned)} title="Editar">
-                          <Edit2 size={14} />
-                        </button>
-                        <button className="btn danger" style={{ padding: '0.4rem' }} onClick={() => setDeleteConfirm({ type: 'canned', id: canned.id, title: canned.title })} title="Excluir">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {cannedResponses.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nenhuma resposta rápida cadastrada.</div>
-                  )}
-                </div>
-              </>
-            )}
+                    ))}
+                    {cannedResponses.length === 0 && <div className="empty-state" style={{ padding: '2rem' }}><p>Nenhuma resposta rápida cadastrada.</p></div>}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {showNotesModal && activeTicket && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Lock size={20} style={{ color: 'var(--warning)' }} />
-                {editingNote ? (editingNote.id === 'new' ? 'Nova Nota Interna' : 'Editar Nota') : 'Notas Internas'}
-              </h2>
-              <button className="close-btn" onClick={() => { setShowNotesModal(false); setEditingNote(null); }}>
-                <X size={18} />
-              </button>
+          <div className="modal-content" style={{ maxWidth: '520px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <NotebookPen size={16} style={{ color: 'var(--warning)' }} />
+                <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{editingNote ? (editingNote.id === 'new' ? 'Nova Nota' : 'Editar Nota') : 'Notas Internas'}</h2>
+              </div>
+              <button className="close-btn" onClick={() => { setShowNotesModal(false); setEditingNote(null); }}><X size={18} /></button>
             </div>
             
-            {editingNote ? (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!editingNote.text) return;
-                if (editingNote.id === 'new') {
-                  addNoteToTicket(activeTicket.id, editingNote.text);
-                } else {
-                  editNoteInTicket(activeTicket.id, editingNote.id, editingNote.text);
-                }
-                setEditingNote(null);
-              }}>
-                <div className="form-group">
-                  <label className="form-label">Observação</label>
-                  <textarea className="form-control" rows={4} value={editingNote.text} onChange={e => setEditingNote({...editingNote, text: e.target.value})} autoFocus required style={{ resize: 'vertical' }}></textarea>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' }}>
-                  <button type="button" className="btn" onClick={() => setEditingNote(null)}>Voltar</button>
-                  <button type="submit" className="btn primary" style={{ background: 'var(--warning)', borderColor: 'var(--warning)' }}>Salvar Nota</button>
-                </div>
-              </form>
-            ) : (
-              <>
-                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className="btn warning" onClick={() => setEditingNote({ id: 'new', text: '' })} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', background: 'var(--warning)', color: '#fff', borderColor: 'var(--warning)' }}>
-                    <Plus size={14} /> Nova Nota
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {activeTicket.notes.map(note => (
-                    <div key={note.id} style={{ padding: '1rem', border: '1px solid var(--warning)', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.05)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', borderBottom: '1px solid rgba(245, 158, 11, 0.2)', paddingBottom: '0.5rem' }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--warning)' }}>{note.operator}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }} className="mono">{note.date} às {note.time}</div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+              {editingNote ? (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!editingNote.text) return;
+                  if (editingNote.id === 'new') addNoteToTicket(activeTicket.id, editingNote.text);
+                  else editNoteInTicket(activeTicket.id, editingNote.id, editingNote.text);
+                  setEditingNote(null);
+                }}>
+                  <div className="form-group"><label className="form-label">Observação</label><textarea className="form-control" rows={3} value={editingNote.text} onChange={e => setEditingNote({...editingNote, text: e.target.value})} autoFocus required></textarea></div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
+                    <button type="button" className="btn" onClick={() => setEditingNote(null)}>Voltar</button>
+                    <button type="submit" className="btn primary">Salvar Nota</button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                    <button className="btn primary" onClick={() => setEditingNote({ id: 'new', text: '' })} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}><Plus size={13} /> Nova Nota</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {activeTicket.notes.map(note => (
+                      <div key={note.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-app)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{note.operator[0]}</div>
+                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{note.operator}</span>
+                          </div>
+                          <span className="mono" style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{note.date} · {note.time}</span>
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5, marginBottom: '0.5rem', paddingLeft: '1.625rem' }}>{note.text}</div>
+                        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                          <button className="btn" style={{ padding: '0.25rem' }} onClick={() => setEditingNote(note)} title="Editar"><Edit2 size={13} /></button>
+                          <button className="btn danger" style={{ padding: '0.25rem' }} onClick={() => setDeleteConfirm({ type: 'note', id: note.id, title: 'Nota de ' + note.date })} title="Excluir"><Trash2 size={13} /></button>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', marginBottom: '1rem' }}>{note.text}</div>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => setEditingNote(note)} title="Editar">
-                          <Edit2 size={14} /> Editar
-                        </button>
-                        <button className="btn danger" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => setDeleteConfirm({ type: 'note', id: note.id, title: 'Nota de ' + note.date })} title="Excluir">
-                          <Trash2 size={14} /> Excluir
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {activeTicket.notes.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nenhuma nota interna registrada.</div>
-                  )}
-                </div>
-              </>
-            )}
+                    ))}
+                    {activeTicket.notes.length === 0 && <div className="empty-state" style={{ padding: '2rem' }}><p>Nenhuma nota interna registrada.</p></div>}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -580,6 +582,39 @@ function Chat() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* History conversation modal */}
+      {historyConversation && (
+        <div className="modal-overlay" onClick={() => setHistoryConversation(null)}>
+          <div className="modal-content" style={{ maxWidth: '560px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <History size={16} style={{ color: 'var(--info)' }} />
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{historyConversation.ticketId}</h2>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{historyConversation.date} · {historyConversation.sector} · {historyConversation.operator}</div>
+                </div>
+              </div>
+              <button className="close-btn" onClick={() => setHistoryConversation(null)}><X size={18} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {historyConversation.messages.map((m, i) => (
+                <div key={i} style={{
+                  alignSelf: m.sender === 'operator' ? 'flex-end' : 'flex-start',
+                  maxWidth: '80%', padding: '0.5rem 0.75rem', borderRadius: '8px',
+                  fontSize: '0.8125rem', lineHeight: 1.45,
+                  background: m.sender === 'operator' ? 'var(--accent-color)' : 'var(--bg-hover)',
+                  color: m.sender === 'operator' ? 'var(--accent-text)' : 'var(--text-primary)',
+                  border: m.sender === 'operator' ? 'none' : '1px solid var(--border-color)',
+                }}>
+                  <div>{m.text}</div>
+                  <div style={{ fontSize: '0.625rem', opacity: 0.6, textAlign: 'right', marginTop: '0.125rem' }}>{m.time}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
