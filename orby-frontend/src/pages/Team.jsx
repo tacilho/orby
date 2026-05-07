@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Trash2, Users as UsersIcon, Briefcase, Search, ChevronDown, Check, Shield } from 'lucide-react';
+import { Plus, X, Trash2, Users as UsersIcon, Briefcase, Search, ChevronDown, Check, Shield, Edit2 } from 'lucide-react';
 import Select from '../components/Select';
+import { useAppContext } from '../context/AppContext';
 
-/* ── Chip multi-select (same pattern as Dashboard) ── */
+const API_BASE = 'http://localhost:8080';
+
+/* ── Chip multi-select ── */
 function ChipMultiSelect({ icon: Icon, allLabel, options, selected, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -74,25 +77,15 @@ function ChipMultiSelect({ icon: Icon, allLabel, options, selected, onChange }) 
 }
 
 function Team() {
-  const [sectors, setSectors] = useState([
-    { id: 1, name: 'Suporte N1' },
-    { id: 2, name: 'Suporte N2' },
-    { id: 3, name: 'Comercial' },
-    { id: 4, name: 'Desenvolvimento' },
-  ]);
-
-  const [operators, setOperators] = useState([
-    { id: 1, name: 'João Silva', email: 'joao@empresa.com', sector: 'Suporte N1', status: 'Ativo' },
-    { id: 2, name: 'Carlos M.', email: 'carlos@empresa.com', sector: 'Suporte N2', status: 'Ativo' },
-    { id: 3, name: 'Ana P.', email: 'ana@empresa.com', sector: 'Comercial', status: 'Ausente' },
-    { id: 4, name: 'Fernanda R.', email: 'fernanda@empresa.com', sector: 'Desenvolvimento', status: 'Ativo' },
-    { id: 5, name: 'Ricardo B.', email: 'ricardo@empresa.com', sector: 'Suporte N1', status: 'Ausente' },
-  ]);
+  const { showToast } = useAppContext();
+  const [sectors, setSectors] = useState([]);
+  const [operators, setOperators] = useState([]);
 
   const [showSectorModal, setShowSectorModal] = useState(false);
   const [showOperatorModal, setShowOperatorModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [newSector, setNewSector] = useState('');
-  const [newOperator, setNewOperator] = useState({ name: '', email: '', sector: '' });
+  const [newOperator, setNewOperator] = useState({ name: '', email: '', sectorId: '' });
   const [deleteConfirm, setDeleteConfirm] = useState({ type: null, id: null, name: null });
 
   const [searchOperator, setSearchOperator] = useState('');
@@ -100,25 +93,111 @@ function Team() {
   const [filterStatus, setFilterStatus] = useState([]);
   const [filterSector, setFilterSector] = useState([]);
 
-  const handleAddSector = (e) => { e.preventDefault(); if (!newSector) return; setSectors([...sectors, { id: Date.now(), name: newSector }]); setNewSector(''); setShowSectorModal(false); };
-  const handleAddOperator = (e) => { e.preventDefault(); if (!newOperator.name || !newOperator.email || !newOperator.sector) return; setOperators([...operators, { ...newOperator, id: Date.now(), status: 'Ausente' }]); setNewOperator({ name: '', email: '', sector: '' }); setShowOperatorModal(false); };
-  const removeSector = (id) => setSectors(sectors.filter(s => s.id !== id));
-  const removeOperator = (id) => setOperators(operators.filter(o => o.id !== id));
+  const fetchData = async () => {
+    try {
+      const [sRes, oRes] = await Promise.all([
+        fetch(`${API_BASE}/management/sectors`),
+        fetch(`${API_BASE}/management/operators`)
+      ]);
+      if (sRes.ok) setSectors(await sRes.json());
+      if (oRes.ok) setOperators(await oRes.json());
+    } catch (err) {
+      showToast("Erro ao carregar dados", "danger");
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleAddSector = async (e) => { 
+    e.preventDefault(); 
+    if (!newSector) return; 
+    try {
+      const method = editingItem?.type === 'sector' ? 'PUT' : 'POST';
+      const url = editingItem?.type === 'sector' ? `${API_BASE}/management/sectors/${editingItem.id}` : `${API_BASE}/management/sectors`;
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSector })
+      });
+      if (res.ok) {
+        showToast(editingItem ? 'Setor atualizado' : 'Setor criado');
+        fetchData();
+        setNewSector(''); setEditingItem(null); setShowSectorModal(false); 
+      }
+    } catch (err) {
+      showToast("Erro ao salvar setor", "danger");
+    }
+  };
+  
+  const handleAddOperator = async (e) => { 
+    e.preventDefault(); 
+    if (!newOperator.name || !newOperator.email || !newOperator.sectorId) return; 
+    try {
+      const method = editingItem?.type === 'operator' ? 'PUT' : 'POST';
+      const url = editingItem?.type === 'operator' ? `${API_BASE}/management/operators/${editingItem.id}` : `${API_BASE}/management/operators`;
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: newOperator.name, 
+          email: newOperator.email, 
+          sectorId: newOperator.sectorId,
+          password: 'password123' // Default for new ops
+        })
+      });
+      if (res.ok) {
+        showToast(editingItem ? 'Operador atualizado' : 'Operador criado');
+        fetchData();
+        setNewOperator({ name: '', email: '', sectorId: '' }); setEditingItem(null); setShowOperatorModal(false); 
+      }
+    } catch (err) {
+      showToast("Erro ao salvar operador", "danger");
+    }
+  };
+
+  const startEditOperator = (op) => {
+    setEditingItem({ type: 'operator', id: op.id });
+    setNewOperator({ name: op.name, email: op.email, sectorId: op.sectorId });
+    setShowOperatorModal(true);
+  };
+
+  const startEditSector = (sector) => {
+    setEditingItem({ type: 'sector', id: sector.id });
+    setNewSector(sector.name);
+    setShowSectorModal(true);
+  };
+
+  const removeSector = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/sectors/${id}`, { method: 'DELETE' });
+      if (res.ok) { showToast('Setor removido'); fetchData(); }
+    } catch (err) { showToast("Erro ao remover", "danger"); }
+  };
+
+  const removeOperator = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/operators/${id}`, { method: 'DELETE' });
+      if (res.ok) { showToast('Operador removido'); fetchData(); }
+    } catch (err) { showToast("Erro ao remover", "danger"); }
+  };
 
   const filteredOperators = useMemo(() => {
     return operators.filter(op => {
+      const opSector = sectors.find(s => s.id === op.sectorId)?.name || '';
       if (searchOperator && !op.name.toLowerCase().includes(searchOperator.toLowerCase()) && !op.email.toLowerCase().includes(searchOperator.toLowerCase())) return false;
       if (filterStatus.length > 0 && !filterStatus.includes(op.status)) return false;
-      if (filterSector.length > 0 && !filterSector.includes(op.sector)) return false;
+      if (filterSector.length > 0 && !filterSector.includes(opSector)) return false;
       return true;
     });
-  }, [operators, searchOperator, filterStatus, filterSector]);
+  }, [operators, sectors, searchOperator, filterStatus, filterSector]);
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchSector.toLowerCase()));
   const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const sectorOptions = sectors.map(s => ({ value: s.name, label: s.name }));
-  const statusOptions = [{ value: 'Ativo', label: 'Ativo' }, { value: 'Ausente', label: 'Ausente' }];
+  const statusOptions = [{ value: 'ONLINE', label: 'Online' }, { value: 'OFFLINE', label: 'Offline' }, { value: 'AWAY', label: 'Ausente' }];
 
   return (
     <div>
@@ -158,24 +237,28 @@ function Team() {
               </tr>
             </thead>
             <tbody>
-              {filteredOperators.map(op => (
-                <tr key={op.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                        {getInitials(op.name)}
+              {filteredOperators.map(op => {
+                const sectorName = sectors.find(s => s.id === op.sectorId)?.name || '—';
+                return (
+                  <tr key={op.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                          {getInitials(op.name)}
+                        </div>
+                        <span style={{ fontWeight: 500 }}>{op.name}</span>
                       </div>
-                      <span style={{ fontWeight: 500 }}>{op.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{op.email}</td>
-                  <td>{op.sector}</td>
-                  <td><span className={`badge ${op.status === 'Ativo' ? 'green' : 'warning'}`}>{op.status}</span></td>
-                  <td>
-                    <button className="btn danger" style={{ padding: '0.3rem' }} onClick={() => setDeleteConfirm({ type: 'operator', id: op.id, name: op.name })} title="Remover"><Trash2 size={14} /></button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{op.email}</td>
+                    <td>{sectorName}</td>
+                    <td><span className={`badge ${op.status === 'ONLINE' ? 'green' : 'warning'}`}>{op.status}</span></td>
+                    <td style={{ display: 'flex', gap: '0.375rem' }}>
+                      <button className="btn" style={{ padding: '0.3rem' }} onClick={() => startEditOperator(op)} title="Editar"><Edit2 size={14} /></button>
+                      <button className="btn danger" style={{ padding: '0.3rem' }} onClick={() => setDeleteConfirm({ type: 'operator', id: op.id, name: op.name })} title="Remover"><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredOperators.length === 0 && (
                 <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nenhum operador encontrado.</td></tr>
               )}
@@ -205,7 +288,8 @@ function Team() {
               {filteredSectors.map(sector => (
                 <tr key={sector.id}>
                   <td style={{ fontWeight: 500 }}>{sector.name}</td>
-                  <td style={{ textAlign: 'right', width: '48px' }}>
+                  <td style={{ textAlign: 'right', width: '80px', display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                    <button className="btn" style={{ padding: '0.3rem' }} onClick={() => startEditSector(sector)} title="Editar"><Edit2 size={14} /></button>
                     <button className="btn danger" style={{ padding: '0.3rem' }} onClick={() => setDeleteConfirm({ type: 'sector', id: sector.id, name: sector.name })} title="Remover"><Trash2 size={14} /></button>
                   </td>
                 </tr>
@@ -222,12 +306,12 @@ function Team() {
       {showSectorModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <div className="modal-header"><h2>Novo Setor</h2><button className="close-btn" onClick={() => setShowSectorModal(false)}><X size={18} /></button></div>
+            <div className="modal-header"><h2>{editingItem ? 'Editar Setor' : 'Novo Setor'}</h2><button className="close-btn" onClick={() => { setShowSectorModal(false); setEditingItem(null); setNewSector(''); }}><X size={18} /></button></div>
             <form onSubmit={handleAddSector}>
               <div className="form-group"><label className="form-label">Nome do Setor</label><input type="text" className="form-control" value={newSector} onChange={(e) => setNewSector(e.target.value)} placeholder="Ex: Comercial B2B" autoFocus required /></div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn" onClick={() => setShowSectorModal(false)}>Cancelar</button>
-                <button type="submit" className="btn primary">Adicionar Setor</button>
+                <button type="submit" className="btn primary">{editingItem ? 'Salvar Alterações' : 'Adicionar Setor'}</button>
               </div>
             </form>
           </div>
@@ -236,16 +320,22 @@ function Team() {
       {showOperatorModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <div className="modal-header"><h2>Adicionar Operador</h2><button className="close-btn" onClick={() => setShowOperatorModal(false)}><X size={18} /></button></div>
+            <div className="modal-header"><h2>{editingItem ? 'Editar Operador' : 'Adicionar Operador'}</h2><button className="close-btn" onClick={() => { setShowOperatorModal(false); setEditingItem(null); setNewOperator({ name: '', email: '', sectorId: '' }); }}><X size={18} /></button></div>
             <form onSubmit={handleAddOperator}>
               <div className="form-group"><label className="form-label">Nome Completo</label><input type="text" className="form-control" value={newOperator.name} onChange={(e) => setNewOperator({...newOperator, name: e.target.value})} placeholder="Ex: Maria Silva" required /></div>
               <div className="form-group"><label className="form-label">E-mail Corporativo</label><input type="email" className="form-control" value={newOperator.email} onChange={(e) => setNewOperator({...newOperator, email: e.target.value})} placeholder="Ex: maria@empresa.com" required /></div>
               <div className="form-group"><label className="form-label">Setor de Atuação</label>
-                <Select value={newOperator.sector} onChange={(val) => setNewOperator({...newOperator, sector: val})} options={sectors.map(s => ({ value: s.name, label: s.name }))} placeholder="— Selecione o Setor —" required />
+                <Select 
+                  value={newOperator.sectorId} 
+                  onChange={(val) => setNewOperator({...newOperator, sectorId: val})} 
+                  options={sectors.map(s => ({ value: s.id, label: s.name }))} 
+                  placeholder="— Selecione o Setor —" 
+                  required 
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn" onClick={() => setShowOperatorModal(false)}>Cancelar</button>
-                <button type="submit" className="btn primary">Cadastrar Operador</button>
+                <button type="submit" className="btn primary">{editingItem ? 'Salvar Alterações' : 'Cadastrar Operador'}</button>
               </div>
             </form>
           </div>

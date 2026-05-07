@@ -33,12 +33,7 @@ function Settings() {
   const handleSave = (e) => {
     e.preventDefault();
     updateTenantConfig(config);
-    // Apply theme CSS vars
-    const root = document.documentElement;
-    if (config.sidebarColor) root.style.setProperty('--bg-sidebar', config.sidebarColor);
-    if (config.panelBg) root.style.setProperty('--bg-panel', config.panelBg);
-    if (config.appBg) root.style.setProperty('--bg-app', config.appBg);
-    if (config.accent2) root.style.setProperty('--info', config.accent2);
+    // CSS vars are now applied centrally by AppContent (theme-aware)
     setSavedStatus('Configurações salvas!');
     setTimeout(() => setSavedStatus(''), 2500);
   };

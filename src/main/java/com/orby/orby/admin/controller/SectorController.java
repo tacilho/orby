@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 @RequestMapping("/management/sectors")
 public class SectorController {
 
@@ -19,7 +20,6 @@ public class SectorController {
 
     @GetMapping
     public List<Sector> findAll() {
-
         return sectorService.findAll();
     }
 
@@ -27,6 +27,18 @@ public class SectorController {
     public ResponseEntity<Sector> create(@RequestBody Sector sector) {
         Sector savedSector = sectorService.save(sector);
         return ResponseEntity.ok(savedSector);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Sector> update(@PathVariable Long id, @RequestBody Sector sector) {
+        sector.setId(id);
+        return ResponseEntity.ok(sectorService.save(sector));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        sectorService.delete(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}")

@@ -40,6 +40,106 @@
   --transition-spring: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Light Theme ─────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-app: #F3F4F6;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #EBEDF1;
+  --bg-active: #E0E2E8;
+
+  --border-color: #D4D6DC;
+  --border-focus: #AEB2BC;
+  --border-subtle: #E6E8EC;
+
+  /* accent-color / accent-text are set dynamically by JS from whitelabel config */
+
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
+
+  --success: #059669;
+  --danger: #DC2626;
+  --warning: #C27803;
+  --info: #3B5FD9;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Light: Primary button hover – slightly darken the accent */
+[data-theme="light"] .btn.primary:hover:not(:disabled) {
+  filter: brightness(0.88);
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+[data-theme="light"] .modal-overlay {
+  background: rgba(30, 30, 40, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #C8CAD0;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #A0A4AE;
+}
+
+[data-theme="light"] .color-swatch.selected {
+  box-shadow: 0 0 0 2px var(--bg-panel);
+}
+
+/* Light: sent messages use accent */
+[data-theme="light"] .message.sent {
+  color: var(--accent-text);
+}
+
+/* Light: sidebar subtle shadow instead of just border */
+[data-theme="light"] .sidebar {
+  box-shadow: 1px 0 0 0 var(--border-color);
+}
+
+/* Light: panels get subtle shadow */
+[data-theme="light"] .panel,
+[data-theme="light"] .metric-card,
+[data-theme="light"] .chart-panel,
+[data-theme="light"] .activity-section {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Light: form controls */
+[data-theme="light"] .form-control,
+[data-theme="light"] .chat-input,
+[data-theme="light"] .search-input-wrap input,
+[data-theme="light"] .filter-search input {
+  background: var(--bg-app);
+  border-color: var(--border-color);
+}
+
+/* Light: nav active indicator uses accent */
+[data-theme="light"] .nav-item.active::before {
+  background: var(--accent-color);
+}
+
+/* Light: chat item active */
+[data-theme="light"] .chat-item.active {
+  border-left-color: var(--accent-color);
+  background: var(--bg-active);
+}
+
+/* Light: brand icon */
+[data-theme="light"] .brand-icon {
+  background: var(--accent-color);
+  color: var(--accent-text);
+}
+
+/* Light: tab active bar */
+[data-theme="light"] .tab-btn.active::after {
+  background: var(--accent-color);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -57,6 +157,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
   font-size: 14px;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.sidebar,
+.panel,
+.modal-content,
+.chat-sidebar,
+.chat-header,
+.chat-messages,
+.chat-input-area,
+.main-content,
+.metric-card,
+.chart-panel,
+.activity-section {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 
 #root {

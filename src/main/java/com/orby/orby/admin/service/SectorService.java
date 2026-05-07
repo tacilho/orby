@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional(readOnly = true)
 public class SectorService {
 
     private final SectorRepository sectorRepository;
@@ -26,8 +25,14 @@ public class SectorService {
         return sectorRepository.findById(id);
     }
 
-    @Transactional(readOnly = false)
+    @Transactional
     public Sector save(Sector sector) {
+        if (sector.getTenantId() == null) sector.setTenantId("default");
         return sectorRepository.save(sector);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        sectorRepository.deleteById(id);
     }
 }

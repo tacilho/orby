@@ -4,13 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.orby.orby.shared.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-@Data
 @Entity
-
-@EqualsAndHashCode(callSuper=true)
 public class Operator extends TenantAwareEntity {
 
     @Id
@@ -35,4 +30,17 @@ public class Operator extends TenantAwareEntity {
     @Column(name = "status", nullable = false)
     private OperatorStatus status = OperatorStatus.OFFLINE;
 
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getSectorId() { return sectorId; }
+    public void setSectorId(Long sectorId) { this.sectorId = sectorId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public OperatorStatus getStatus() { return status; }
+    public void setStatus(OperatorStatus status) { this.status = status; }
 }

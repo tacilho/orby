@@ -1,5 +1,6 @@
 package com.orby.orby.ticket.controller;
 
+import com.orby.orby.shared.tenant.TenantContext;
 import com.orby.orby.ticket.model.ChatMessage;
 import com.orby.orby.ticket.model.SupportTicket;
 import com.orby.orby.ticket.service.ChatMessageService;
@@ -11,10 +12,12 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class ChatController {
 
     private final ChatMessageService chatMessageService;
@@ -29,12 +32,26 @@ public class ChatController {
 
     @MessageMapping("/chat.sendMessage/{ticketId}")
     public void sendMessage(@DestinationVariable Long ticketId, @Payload ChatMessage chatMessage) {
-        SupportTicket ticket = supportTicketService.findById(ticketId).orElseThrow(() -> new RuntimeException("Ticket not found"));
-        chatMessage.setTicket(ticket);
-        
-        ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
+        // Set tenant context for WebSocket (no HTTP interceptor here)
+        TenantContext.setCurrentTenant("default");
+        try {
+            SupportTicket ticket = supportTicketService.findById(ticketId)
+                    .orElseThrow(() -> new RuntimeException("Ticket not found"));
+            chatMessage.setTicket(ticket);
 
-        messagingTemplate.convertAndSend("/topic/ticket/" + ticketId, savedMessage);
+            if (chatMessage.getMessageId() == null || chatMessage.getMessageId().isEmpty()) {
+                chatMessage.setMessageId(UUID.randomUUID().toString());
+            }
+            if (chatMessage.getTimestamp() == null) {
+                chatMessage.setTimestamp(LocalDateTime.now());
+            }
+
+            ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
+
+            messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @GetMapping("/management/tickets/{ticketId}/messages")

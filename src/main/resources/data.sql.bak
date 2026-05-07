@@ -1,0 +1,75 @@
+-- Seed data for Orby Chat MVP (Large Dataset)
+-- Password is 'password' encoded with BCrypt: $2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.
+
+-- Insert 10 Sectors
+INSERT INTO sector (id, name, tenant_id) VALUES (1, 'Suporte Técnico N1', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (2, 'Suporte Técnico N2', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (3, 'Financeiro', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (4, 'Comercial', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (5, 'Logística', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (6, 'RH', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (7, 'Vendas B2B', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (8, 'Vendas B2C', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (9, 'Desenvolvimento', 'default');
+INSERT INTO sector (id, name, tenant_id) VALUES (10, 'Infraestrutura', 'default');
+
+-- Insert 10 Operators
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (1, 'João Silva', 'joao@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 1, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (2, 'Carlos M.', 'carlos@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 2, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (3, 'Ana P.', 'ana@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 3, 'OFFLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (4, 'Fernanda R.', 'fernanda@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 4, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (5, 'Ricardo B.', 'ricardo@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 5, 'OFFLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (6, 'Mariana L.', 'mariana@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 6, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (7, 'Pedro H.', 'pedro@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 7, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (8, 'Juliana S.', 'juliana@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 8, 'OFFLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (9, 'Lucas G.', 'lucas@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 9, 'ONLINE', 'default');
+INSERT INTO operator (id, name, email, password, sector_id, status, tenant_id) VALUES (10, 'Sofia M.', 'sofia@orby.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xdqD1RPHXi67hmS.', 10, 'ONLINE', 'default');
+
+-- Insert 10 Clients
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (1, 'Tech Solutions', '12345678000199', '11988887777', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (2, 'Maria Oliveira', '98765432100', '11977776666', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (3, 'Padaria do João', '11222333000188', '11966665555', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (4, 'Global Logistics', '33444555000177', '11955554444', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (5, 'Construtora Alpha', '55666777000166', '11944443333', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (6, 'Escola Aprender', '77888999000155', '11933332222', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (7, 'Consultório Arnaldo', '99000111000144', '11922221111', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (8, 'Mercado do Bairro', '12121212000133', '11911110000', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (9, 'Academia FitLife', '34343434000122', '11900009999', 'default');
+INSERT INTO client (id, name, cpf_cnpj, phone_number, tenant_id) VALUES (10, 'Agência Criativa', '56565656000111', '11999998888', 'default');
+
+-- Insert 30 Support Tickets (10 OPEN, 10 ONLINE, 10 CLOSED)
+-- 10 ONLINE (In Progress)
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (1, 1, 1, 1, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (2, 2, 2, 2, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (3, 3, 3, 3, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (4, 4, 4, 4, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (5, 5, 5, 5, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (6, 6, 6, 6, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (7, 7, 7, 7, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (8, 8, 8, 8, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (9, 9, 9, 9, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (10, 10, 10, 10, 'ONLINE', CURRENT_TIMESTAMP, 'default');
+
+-- 10 OPEN
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (11, 1, 1, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (12, 2, 2, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (13, 3, 3, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (14, 4, 4, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (15, 5, 5, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (16, 6, 6, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (17, 7, 7, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (18, 8, 8, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (19, 9, 9, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (20, 10, 10, null, 'OPEN', CURRENT_TIMESTAMP, 'default');
+
+-- 10 CLOSED (Using OFFLINE for now as that's what the model uses for closed in this context)
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (21, 1, 1, 1, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (22, 2, 2, 2, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (23, 3, 3, 3, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (24, 4, 4, 4, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (25, 5, 5, 5, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (26, 6, 6, 6, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (27, 7, 7, 7, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (28, 8, 8, 8, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (29, 9, 9, 9, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
+INSERT INTO support_ticket (id, sector_id, client_id, operator_id, status, created_at, tenant_id) VALUES (30, 10, 10, 10, 'OFFLINE', CURRENT_TIMESTAMP, 'default');
