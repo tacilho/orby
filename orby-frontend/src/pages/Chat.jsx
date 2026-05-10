@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText, History, Layers, Search, AlertCircle, Cpu, Rocket, Monitor, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText, History, Layers, Search, AlertCircle, Cpu, Rocket, Monitor, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react';
 import Select from '../components/Select';
 import DateTimePicker from '../components/DateTimePicker';
 import { useAppContext } from '../context/AppContext';
@@ -142,7 +142,10 @@ function Chat() {
                 onClick={() => setActiveTicketId(ticket.id)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.95rem' }}>{ticket.clientName}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.95rem' }}>{ticket.clientName}</span>
+                    {ticket.source === 'WHATSAPP' && <MessageCircle size={12} style={{ color: '#25D366' }} />}
+                  </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ticket.createdAt}</span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -173,7 +176,14 @@ function Chat() {
                     <User size={20} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{activeTicket.clientName}</div>
+                    <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {activeTicket.clientName}
+                      {activeTicket.source === 'WHATSAPP' && (
+                        <span style={{ fontSize: '0.65rem', background: '#25D36615', color: '#25D366', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <MessageCircle size={10} /> WHATSAPP
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.8rem', fontWeight: '500', color: isTransferred ? 'var(--text-secondary)' : 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.35rem', transition: 'all 0.2s' }}>
                       {!isTransferred && <span style={{ width: 6, height: 6, borderRadius: '50%', background: isClientTyping ? 'var(--warning)' : 'var(--success)' }}></span>}
                       {isTransferred ? (

@@ -22,6 +22,10 @@ export function AppProvider({ children }) {
     { id: '2', title: 'Bug', color: '#ef4444' },
     { id: '3', title: 'Tarefa', color: '#10b981' }
   ]);
+  const [kanbanCards, setKanbanCards] = useState([
+    { id: 'K-101', title: 'Ajustar carregamento do Dashboard', type: 'Bug', status: 'in_progress', ticketId: '1001', clientName: 'Empresa Alpha', priority: 'high' },
+    { id: 'K-102', title: 'Nova exportação de relatórios em CSV', type: 'Melhoria', status: 'todo', ticketId: null, clientName: null, priority: 'medium' },
+  ]);
 
   const showToast = (message, type = 'success') => {
     const id = Date.now();
@@ -219,6 +223,31 @@ export function AppProvider({ children }) {
     }
   };
 
+  const escalateTicketToDev = (ticketId, taskTitle, type) => {
+    const ticket = tickets.find(t => t.id === ticketId.toString());
+    const newCard = {
+      id: `K-${Math.floor(Math.random() * 900) + 100}`,
+      title: taskTitle || `Demanda do chamado ${ticketId}`,
+      type: type || 'Bug',
+      status: 'todo',
+      ticketId: ticketId.toString(),
+      clientName: ticket?.clientName || 'Cliente Externo',
+      priority: 'medium',
+      createdAt: new Date().toISOString()
+    };
+
+    setKanbanCards(prev => [newCard, ...prev]);
+    
+    // Update ticket to show it has a dev link
+    setTickets(prev => prev.map(t => t.id === ticketId.toString() ? {
+      ...t,
+      devCardId: newCard.id,
+      devStatus: 'todo'
+    } : t));
+
+    showToast('Ticket escalado para o desenvolvimento!', 'success');
+  };
+
   const addCannedResponse = async (title, text) => {
     try {
       const res = await fetch(`${API_BASE}/api/config/canned-responses`, {
@@ -253,14 +282,44 @@ export function AppProvider({ children }) {
     const socket = new SockJS(`${API_BASE}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
+      debug: (str) => console.log('STOMP Debug:', str),
       onConnect: () => {
+        console.log('STOMP Connected!');
         setIsConnected(true);
         client.subscribe('/topic/tickets', (msg) => {
-          const newTicket = JSON.parse(msg.body);
-          setTickets(prev => [...prev, { ...newTicket, id: newTicket.id.toString(), status: 'open', messages: [] }]);
+          const t = JSON.parse(msg.body);
+          const mapped = {
+            ...t,
+            id: t.id.toString(),
+            clientName: t.client?.name || 'Cliente Desconhecido',
+            operator: t.operator?.name || null,
+            sector: t.sector?.name || null,
+            status: t.status?.toLowerCase() || 'open',
+            messages: t.messages?.map(m => ({
+              id: m.id.toString(),
+              text: m.content,
+              sender: m.senderId === 'operator' ? 'operator' : 'client',
+              time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              type: 'message'
+            })) || [],
+            notes: t.notes || [],
+            equipments: t.equipments || []
+          };
+          setTickets(prev => {
+            if (prev.some(existing => existing.id === mapped.id)) return prev;
+            return [mapped, ...prev];
+          });
+          showToast(`Novo chamado de ${mapped.clientName}`, "info");
         });
       },
-      onDisconnect: () => setIsConnected(false)
+      onStompError: (frame) => {
+        console.error('STOMP Error:', frame.headers['message']);
+        console.error('STOMP Details:', frame.body);
+      },
+      onDisconnect: () => {
+        console.log('STOMP Disconnected');
+        setIsConnected(false);
+      }
     });
 
     client.activate();
@@ -312,7 +371,8 @@ export function AppProvider({ children }) {
       cardTypes,
       theme, toggleTheme,
       toasts, showToast,
-      isClientTyping, setIsClientTyping
+      isClientTyping, setIsClientTyping,
+      kanbanCards, setKanbanCards, escalateTicketToDev
     }}>
       {children}
     </AppContext.Provider>

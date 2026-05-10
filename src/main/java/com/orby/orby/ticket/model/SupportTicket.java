@@ -33,6 +33,12 @@ public class SupportTicket extends TenantAwareEntity {
     @Column(name = "status", nullable = false)
     private TicketStatus status = TicketStatus.OPEN;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false)
+    private SupportTicketSource source = SupportTicketSource.WEB;
+
+    private String externalConversationId;
+
     private String reason;
     private String subReason;
 
@@ -74,6 +80,10 @@ public class SupportTicket extends TenantAwareEntity {
     public void setReason(String reason) { this.reason = reason; }
     public String getSubReason() { return subReason; }
     public void setSubReason(String subReason) { this.subReason = subReason; }
+    public SupportTicketSource getSource() { return source; }
+    public void setSource(SupportTicketSource source) { this.source = source; }
+    public String getExternalConversationId() { return externalConversationId; }
+    public void setExternalConversationId(String externalConversationId) { this.externalConversationId = externalConversationId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getAcceptedAt() { return acceptedAt; }

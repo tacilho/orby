@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle } from 'lucide-react';
+import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import DateTimePicker from '../components/DateTimePicker';
@@ -364,7 +364,12 @@ function Tickets() {
                       <React.Fragment key={ticket.id}>
                         <tr style={{ cursor: 'pointer' }} onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}>
                           <td className="mono" style={{ color: 'var(--text-muted)' }}>{ticket.id}</td>
-                          <td style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.clientName}</td>
+                          <td style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {ticket.clientName}
+                            {ticket.source === 'WHATSAPP' && (
+                              <MessageCircle size={14} style={{ color: '#25D366' }} title="Via WhatsApp" />
+                            )}
+                          </td>
                           <td>{sectorLabel(ticket.sector)}</td>
                           <td>
                             {ticket.operator || <span style={{ color: 'var(--text-muted)' }}>Fila</span>}
