@@ -8,8 +8,15 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-@Repository
 public interface SupportTicketRepository extends JpaRepository<SupportTicket, Long> {
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
+    java.util.List<SupportTicket> findAll();
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
+    java.util.Optional<SupportTicket> findById(Long id);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
     Optional<SupportTicket> findFirstByClientAndStatusInAndTenantIdOrderByCreatedAtDesc(
             Client client, 
             java.util.Collection<TicketStatus> statuses, 

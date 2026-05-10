@@ -53,14 +53,17 @@ public class SupportTicket extends TenantAwareEntity {
     @Column(columnDefinition = "TEXT")
     private String closingComment;
 
+    @org.hibernate.annotations.BatchSize(size = 20)
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<ChatMessage> messages = new ArrayList<>();
 
+    @org.hibernate.annotations.BatchSize(size = 20)
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<TicketNote> notes = new ArrayList<>();
 
+    @org.hibernate.annotations.BatchSize(size = 20)
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Equipment> equipments = new ArrayList<>();
