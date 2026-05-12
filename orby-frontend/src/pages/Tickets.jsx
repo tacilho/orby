@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle } from 'lucide-react';
+import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import DateTimePicker from '../components/DateTimePicker';
@@ -111,6 +111,7 @@ function PeriodFilter({ dateRange, setDateRange, dateStart, setDateStart, dateEn
     </div>
   );
 }
+
 
 /* ── History modal ────────────────────────────────── */
 function HistoryModal({ ticket, onClose }) {
@@ -267,7 +268,7 @@ function Tickets() {
   const [dateEnd, setDateEnd] = useState(null);
   const [operatorFilter, setOperatorFilter] = useState([]);
   const [sectorFilter, setSectorFilter] = useState([]);
-  const [statusFilter, setStatusFilter] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('open');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTicket, setExpandedTicket] = useState(null);
   const [historyTicket, setHistoryTicket] = useState(null);
@@ -282,11 +283,10 @@ function Tickets() {
 
   const { ticketReasons, ticketSubReasons } = useAppContext();
 
-  const filteredTickets = useMemo(() => {
+  const filteredTicketsWithoutStatus = useMemo(() => {
     return tickets.filter(t => {
       if (operatorFilter.length > 0 && !operatorFilter.includes(t.operator)) return false;
       if (sectorFilter.length > 0 && !sectorFilter.includes(t.sector)) return false;
-      if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(t.clientName)) return false;
       if (reasonFilter.length > 0 && !reasonFilter.includes(t.reason)) return false;
       if (subReasonFilter.length > 0 && !subReasonFilter.includes(t.subReason)) return false;
@@ -296,7 +296,21 @@ function Tickets() {
       }
       return true;
     });
-  }, [tickets, operatorFilter, sectorFilter, statusFilter, clientFilter, reasonFilter, subReasonFilter, searchQuery]);
+  }, [tickets, operatorFilter, sectorFilter, clientFilter, reasonFilter, subReasonFilter, searchQuery]);
+
+  const counts = useMemo(() => {
+    const c = {};
+    STATUS_SECTIONS.forEach(s => c[s.key] = 0);
+    filteredTicketsWithoutStatus.forEach(t => { if (c[t.status] !== undefined) c[t.status]++; });
+    return c;
+  }, [filteredTicketsWithoutStatus]);
+
+  const filteredTickets = useMemo(() => {
+    return filteredTicketsWithoutStatus.filter(t => {
+      if (statusFilter && t.status !== statusFilter) return false;
+      return true;
+    });
+  }, [filteredTicketsWithoutStatus, statusFilter]);
 
   const groupedTickets = useMemo(() => {
     const groups = {};
@@ -325,7 +339,6 @@ function Tickets() {
         <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
         <ChipMultiSelect icon={Users} allLabel="Operador" options={ALL_OPERATORS.map(o => ({ value: o, label: o }))} selected={operatorFilter} onChange={setOperatorFilter} />
         <ChipMultiSelect icon={Building2} allLabel="Setor" options={ALL_SECTORS} selected={sectorFilter} onChange={setSectorFilter} />
-        <ChipMultiSelect icon={Layers} allLabel="Status" options={STATUS_SECTIONS.map(s => ({ value: s.key, label: s.label }))} selected={statusFilter} onChange={setStatusFilter} />
         <ChipMultiSelect icon={Search} allLabel="Cliente" options={clientOptions} selected={clientFilter} onChange={setClientFilter} />
         <ChipMultiSelect icon={Info} allLabel="Motivo" options={ticketReasons.map(r => ({ value: r.title, label: r.title }))} selected={reasonFilter} onChange={setReasonFilter} />
         <ChipMultiSelect icon={Info} allLabel="Submotivo" options={ticketSubReasons.map(s => ({ value: s.title, label: s.title }))} selected={subReasonFilter} onChange={setSubReasonFilter} />
@@ -335,13 +348,31 @@ function Tickets() {
         </div>
       </div>
 
-      {/* Sections */}
+      <div className="tabs" style={{ marginBottom: '1.5rem' }}>
+        {STATUS_SECTIONS.map(s => (
+          <button key={s.key} className={`tab-btn ${statusFilter === s.key ? 'active' : ''}`} onClick={() => setStatusFilter(s.key)}>
+            {s.label}
+            <span style={{ 
+              fontSize: '0.7rem', 
+              padding: '0.125rem 0.5rem', 
+              borderRadius: '100px', 
+              background: statusFilter === s.key ? 'var(--accent-color)' : 'var(--bg-active)',
+              color: statusFilter === s.key ? 'var(--accent-text)' : 'var(--text-muted)',
+              marginLeft: '0.25rem',
+              fontWeight: 700
+            }}>{counts[s.key] || 0}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Section */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {STATUS_SECTIONS.map(section => {
-          if (statusFilter.length > 0 && !statusFilter.includes(section.key)) return null;
+        {(() => {
+          const section = STATUS_SECTIONS.find(s => s.key === statusFilter);
+          if (!section) return null;
           const sectionTickets = groupedTickets[section.key] || [];
           return (
-            <div key={section.key} className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderBottom: sectionTickets.length > 0 ? '1px solid var(--border-color)' : 'none' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: section.color, flexShrink: 0 }} />
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{section.label}</span>
@@ -396,11 +427,16 @@ function Tickets() {
                   </tbody>
                 </table>
               ) : (
-                <div style={{ padding: '1.25rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Nenhum chamado nesta seção.</div>
+                <div style={{ padding: '3rem 1rem', textAlign: 'center' }} className="fade-in">
+                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-muted)' }}>
+                      <Layers size={48} style={{ opacity: 0.1 }} />
+                      <div style={{ fontSize: '0.875rem' }}>Nenhum chamado em {section.label.toLowerCase()}</div>
+                   </div>
+                </div>
               )}
             </div>
           );
-        })}
+        })()}
       </div>
 
       {historyTicket && <HistoryModal ticket={historyTicket} onClose={() => setHistoryTicket(null)} />}

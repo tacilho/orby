@@ -22,4 +22,11 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
             java.util.Collection<TicketStatus> statuses, 
             String tenantId
     );
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
+    Optional<SupportTicket> findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
+            Client client,
+            TicketStatus status,
+            String tenantId
+    );
 }

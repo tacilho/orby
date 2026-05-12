@@ -23,17 +23,20 @@ public class SupportTicketService {
     private final SectorRepository sectorRepository;
     private final TicketNoteRepository noteRepository;
     private final EquipmentRepository equipmentRepository;
+    private final WhatsAppService whatsAppService;
 
     public SupportTicketService(SupportTicketRepository supportTicketRepository, 
                                 OperatorRepository operatorRepository, 
                                 SectorRepository sectorRepository,
                                 TicketNoteRepository noteRepository,
-                                EquipmentRepository equipmentRepository) {
+                                EquipmentRepository equipmentRepository,
+                                WhatsAppService whatsAppService) {
         this.supportTicketRepository = supportTicketRepository;
         this.operatorRepository = operatorRepository;
         this.sectorRepository = sectorRepository;
         this.noteRepository = noteRepository;
         this.equipmentRepository = equipmentRepository;
+        this.whatsAppService = whatsAppService;
     }
 
     public List<SupportTicket> findAll() {
@@ -73,7 +76,27 @@ public class SupportTicketService {
         ticket.setSubReason(subReason);
         ticket.setClosingComment(comment);
         ticket.setRating(rating);
-        return supportTicketRepository.save(ticket);
+        SupportTicket saved = supportTicketRepository.save(ticket);
+
+        // Send rating request via WhatsApp if applicable
+        if (saved.getSource() == SupportTicketSource.WHATSAPP && saved.getExternalConversationId() != null) {
+            try {
+                String ratingMessage = "⭐ *Avaliação do Atendimento* ⭐\n\n"
+                    + "Seu chamado foi encerrado.\n"
+                    + "Por favor, avalie nosso atendimento respondendo com uma nota de 1 a 5:\n\n"
+                    + "1 ⭐ - Péssimo\n"
+                    + "2 ⭐⭐ - Ruim\n"
+                    + "3 ⭐⭐⭐ - Regular\n"
+                    + "4 ⭐⭐⭐⭐ - Bom\n"
+                    + "5 ⭐⭐⭐⭐⭐ - Excelente\n\n"
+                    + "Obrigado! 😊";
+                whatsAppService.sendTextMessage(saved.getExternalConversationId(), ratingMessage);
+            } catch (Exception e) {
+                System.err.println("Failed to send rating request via WhatsApp: " + e.getMessage());
+            }
+        }
+
+        return saved;
     }
 
     @Transactional

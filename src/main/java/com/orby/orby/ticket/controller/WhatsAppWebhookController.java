@@ -6,6 +6,7 @@ import com.orby.orby.shared.tenant.TenantContext;
 import com.orby.orby.ticket.model.*;
 import com.orby.orby.ticket.repository.SupportTicketRepository;
 import com.orby.orby.ticket.service.ChatMessageService;
+import com.orby.orby.ticket.service.WhatsAppService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -25,6 +26,7 @@ public class WhatsAppWebhookController {
     private final SupportTicketRepository ticketRepository;
     private final ChatMessageService chatMessageService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WhatsAppService whatsAppService;
 
     @Value("${whatsapp.verify.token:}")
     private String verifyToken;
@@ -32,11 +34,13 @@ public class WhatsAppWebhookController {
     public WhatsAppWebhookController(ClientRepository clientRepository,
                                      SupportTicketRepository ticketRepository,
                                      ChatMessageService chatMessageService,
-                                     SimpMessagingTemplate messagingTemplate) {
+                                     SimpMessagingTemplate messagingTemplate,
+                                     WhatsAppService whatsAppService) {
         this.clientRepository = clientRepository;
         this.ticketRepository = ticketRepository;
         this.chatMessageService = chatMessageService;
         this.messagingTemplate = messagingTemplate;
+        this.whatsAppService = whatsAppService;
     }
 
     @GetMapping
@@ -52,6 +56,7 @@ public class WhatsAppWebhookController {
     @PostMapping
     public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
         try {
+            System.out.println("Webhook received payload: " + payload);
             TenantContext.setCurrentTenant("default"); // Hardcoded for now
             processPayload(payload);
             return ResponseEntity.ok().build();
@@ -86,6 +91,7 @@ public class WhatsAppWebhookController {
                     String text = (String) textObj.get("body");
                     if (text == null) continue;
 
+                    System.out.println("Processing message from: " + from + " with body: " + text);
                     handleIncomingMessage(from, text);
                 }
             }
@@ -96,6 +102,7 @@ public class WhatsAppWebhookController {
         // 1. Find or create client
         Client client = clientRepository.findByPhoneNumberAndTenantId(phoneNumber, "default")
                 .orElseGet(() -> {
+                    System.out.println("Creating new client for: " + phoneNumber);
                     Client newClient = new Client();
                     newClient.setName("WhatsApp User " + phoneNumber);
                     newClient.setPhoneNumber(phoneNumber);
@@ -103,6 +110,38 @@ public class WhatsAppWebhookController {
                     newClient.setTenantId("default");
                     return clientRepository.save(newClient);
                 });
+
+        // 1.5 Check if this is a rating response (1-5) for a recently closed ticket
+        String trimmed = text.trim();
+        if (trimmed.matches("^[1-5]$")) {
+            var closedTicket = ticketRepository.findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
+                    client, TicketStatus.CLOSED, "default");
+            if (closedTicket.isPresent()) {
+                SupportTicket ticket = closedTicket.get();
+                ticket.setRating(Integer.parseInt(trimmed));
+                ticketRepository.save(ticket);
+                System.out.println("Rating " + trimmed + " saved for ticket " + ticket.getId());
+
+                // Send thank you message
+                try {
+                    String[] thanks = {
+                        "😔 Obrigado pelo seu feedback. Vamos melhorar!",
+                        "😐 Obrigado pelo feedback. Vamos trabalhar para melhorar.",
+                        "🙂 Obrigado pela avaliação!",
+                        "😊 Obrigado! Ficamos felizes com sua avaliação!",
+                        "🎉 Muito obrigado! Excelente saber que gostou do atendimento!"
+                    };
+                    int idx = Integer.parseInt(trimmed) - 1;
+                    whatsAppService.sendTextMessage(phoneNumber, thanks[idx]);
+                } catch (Exception e) {
+                    System.err.println("Failed to send rating thank-you: " + e.getMessage());
+                }
+
+                // Notify frontend about rating update
+                messagingTemplate.convertAndSend("/topic/tickets", ticket);
+                return; // Don't create a new ticket for rating responses
+            }
+        }
 
         // 2. Find or create ticket
         SupportTicket ticket = ticketRepository.findFirstByClientAndStatusInAndTenantIdOrderByCreatedAtDesc(

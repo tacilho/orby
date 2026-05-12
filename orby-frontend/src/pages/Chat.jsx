@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText, History, Layers, Search, AlertCircle, Cpu, Rocket, Monitor, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react';
+import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, Clock, Info, Zap, Plus, Edit2, Trash2, Paperclip, Image as ImageIcon, FileText, History, Layers, Search, AlertCircle, Cpu, Rocket, Monitor, ChevronDown, ChevronUp, MessageCircle, Star, Save, FileSignature } from 'lucide-react';
 import Select from '../components/Select';
 import DateTimePicker from '../components/DateTimePicker';
 import { useAppContext } from '../context/AppContext';
@@ -12,6 +12,7 @@ function Chat() {
     addMessageToTicket, 
     transferTicket,
     closeTicket,
+    updateClient,
     cannedResponses,
     addCannedResponse,
     editCannedResponse,
@@ -42,6 +43,8 @@ function Chat() {
   const [selectedReason, setSelectedReason] = useState('');
   const [selectedSubReason, setSelectedSubReason] = useState('');
   const [closingDescription, setClosingDescription] = useState('');
+  const [closingRating, setClosingRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [editingReason, setEditingReason] = useState(null);
   const [editingSubReason, setEditingSubReason] = useState(null);
   const [editingCanned, setEditingCanned] = useState(null);
@@ -51,6 +54,8 @@ function Chat() {
   const [expandedEquipmentId, setExpandedEquipmentId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
   const [editingEquipment, setEditingEquipment] = useState(null);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editClientData, setEditClientData] = useState({});
 
   // Sync form state when editing
   useEffect(() => {
@@ -161,8 +166,8 @@ function Chat() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <div className="chat-main" style={{ flex: 1 }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minWidth: 0 }}>
+          <div className="chat-main" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           {!activeTicket ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                <User size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
@@ -219,7 +224,7 @@ function Chat() {
                       </button>
                     </>
                   )}
-                  <button className={`btn ${showClientInfo ? 'primary' : ''}`} title="Detalhes do Cliente" onClick={() => setShowClientInfo(!showClientInfo)}>
+                  <button className={`btn ${showClientInfo ? 'primary' : ''}`} title="Detalhes do Cliente" onClick={() => { setShowClientInfo(!showClientInfo); if (showClientInfo) setIsEditingClient(false); }}>
                     <Info size={16} />
                   </button>
                 </div>
@@ -305,36 +310,81 @@ function Chat() {
         </div>
 
         {activeTicket && showClientInfo && (
-          <div className="panel-slide-in" style={{ width: '300px', borderLeft: '1px solid var(--border-color)', background: 'var(--bg-panel)', padding: '1.25rem', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: '1.25rem' }}>Informações do Cliente</h3>
+          <div className="panel-slide-in" style={{ width: '300px', minWidth: '300px', flexShrink: 0, borderLeft: '1px solid var(--border-color)', background: 'var(--bg-panel)', padding: '1.25rem', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, margin: 0 }}>Informações do Cliente</h3>
+              {!isEditingClient ? (
+                <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => {
+                  setIsEditingClient(true);
+                  setEditClientData({
+                    name: activeTicket.client?.name || activeTicket.clientName || '',
+                    document: activeTicket.client?.document || '',
+                    phoneNumber: activeTicket.client?.phoneNumber || '',
+                    email: activeTicket.client?.email || ''
+                  });
+                }}>
+                  <Edit2 size={12} /> Editar
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => setIsEditingClient(false)}>
+                    <X size={12} />
+                  </button>
+                  <button className="btn primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={async () => {
+                    if (activeTicket.client?.id) {
+                      await updateClient(activeTicket.client.id, editClientData);
+                      setIsEditingClient(false);
+                    }
+                  }}>
+                    <Save size={12} /> Salvar
+                  </button>
+                </div>
+              )}
+            </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  <User size={11} /> Cliente
+                  <User size={11} /> Nome
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{activeTicket.clientName}</div>
+                {isEditingClient ? (
+                  <input type="text" className="form-control" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.5rem' }} value={editClientData.name} onChange={e => setEditClientData({ ...editClientData, name: e.target.value })} />
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{activeTicket.clientName}</div>
+                )}
               </div>
 
               <div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  <User size={11} /> Contato
+                  <FileSignature size={11} /> CPF/CNPJ
                 </div>
-                <div style={{ fontSize: '0.875rem' }}>{activeTicket.contactName || '—'}</div>
+                {isEditingClient ? (
+                  <input type="text" className="form-control" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.5rem' }} value={editClientData.document} onChange={e => setEditClientData({ ...editClientData, document: e.target.value })} placeholder="000.000.000-00" />
+                ) : (
+                  <div style={{ fontSize: '0.875rem' }}>{activeTicket.client?.document || '—'}</div>
+                )}
               </div>
 
               <div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   <Mail size={11} /> E-mail
                 </div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{activeTicket.clientEmail || '—'}</div>
+                {isEditingClient ? (
+                  <input type="email" className="form-control" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.5rem' }} value={editClientData.email} onChange={e => setEditClientData({ ...editClientData, email: e.target.value })} placeholder="email@exemplo.com" />
+                ) : (
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{activeTicket.client?.email || '—'}</div>
+                )}
               </div>
 
               <div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   <Phone size={11} /> Telefone
                 </div>
-                <div style={{ fontSize: '0.875rem' }}>{activeTicket.clientPhone || '—'}</div>
+                {isEditingClient ? (
+                  <input type="text" className="form-control" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.5rem' }} value={editClientData.phoneNumber} onChange={e => setEditClientData({ ...editClientData, phoneNumber: e.target.value })} placeholder="+5519999999999" />
+                ) : (
+                  <div style={{ fontSize: '0.875rem' }}>{activeTicket.client?.phoneNumber || '—'}</div>
+                )}
               </div>
             </div>
             
@@ -854,10 +904,21 @@ function Chat() {
                   ></textarea>
                 </div>
 
+                {activeTicket.source === 'WHATSAPP' && (
+                  <div style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(37, 211, 102, 0.08)', border: '1px solid rgba(37, 211, 102, 0.2)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <MessageCircle size={16} style={{ color: '#25D366', flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Ao encerrar, uma pesquisa de avaliação por estrelas será enviada automaticamente ao cliente via WhatsApp.
+                    </span>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginTop: '1.5rem' }}>
                   <button className="btn" onClick={() => setShowCloseModal(false)}>Cancelar</button>
                   <button className="btn primary" disabled={!selectedReason || !selectedSubReason} onClick={() => { 
-                    closeTicket(activeTicket.id, selectedReason, selectedSubReason, closingDescription); 
+                    const reasonObj = ticketReasons.find(r => r.id === selectedReason);
+                    const subReasonObj = ticketSubReasons.find(sr => sr.id === selectedSubReason);
+                    closeTicket(activeTicket.id, reasonObj?.title || '', subReasonObj?.title || '', closingDescription); 
                     setShowCloseModal(false);
                     setSelectedReason(''); 
                     setSelectedSubReason('');

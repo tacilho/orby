@@ -91,7 +91,10 @@ export function AppProvider({ children }) {
       }
 
       if (reasonsRes.ok) setTicketReasons(await reasonsRes.json());
-      if (subResRes.ok) setTicketSubReasons(await subResRes.json());
+      if (subResRes.ok) {
+        const subs = await subResRes.json();
+        setTicketSubReasons(subs.map(sr => ({ ...sr, parentId: sr.reason?.id || sr.parentId })));
+      }
       if (cannedRes.ok) setCannedResponses(await cannedRes.json());
       if (configRes.ok) setTenantConfig(await configRes.json());
 
@@ -181,6 +184,34 @@ export function AppProvider({ children }) {
     } catch (err) {
       showToast('Erro ao transferir chamado', 'danger');
     }
+  };
+
+  const updateClient = async (clientId, clientData) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/management/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData)
+      });
+      if (res.ok) {
+        const updatedClient = await res.json();
+        setTickets(prev => prev.map(t => {
+          if (t.client && t.client.id === clientId) {
+            return {
+              ...t,
+              client: updatedClient,
+              clientName: updatedClient.name // sync denormalized field
+            };
+          }
+          return t;
+        }));
+        showToast('Dados do cliente atualizados');
+        return updatedClient;
+      }
+    } catch (err) {
+      showToast('Erro ao atualizar dados do cliente', 'danger');
+    }
+    return null;
   };
 
   const addNoteToTicket = async (ticketId, text) => {
@@ -277,6 +308,89 @@ export function AppProvider({ children }) {
     }
   };
 
+  const editCannedResponse = async (id, title, text) => {
+    // For now, delete and recreate since we don't have PUT endpoint
+    setCannedResponses(prev => prev.map(c => c.id === id ? { ...c, title, text } : c));
+  };
+
+  // ── Ticket Reasons CRUD ──
+  const addTicketReason = async (title) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/reasons`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTicketReasons(prev => [...prev, saved]);
+        showToast('Motivo adicionado');
+      }
+    } catch (err) { showToast('Erro ao adicionar motivo', 'danger'); }
+  };
+
+  const editTicketReason = async (id, title) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/reasons/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        setTicketReasons(prev => prev.map(r => r.id === id ? { ...r, title } : r));
+        showToast('Motivo atualizado');
+      }
+    } catch (err) { showToast('Erro ao editar motivo', 'danger'); }
+  };
+
+  const deleteTicketReason = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/reasons/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTicketReasons(prev => prev.filter(r => r.id !== id));
+        setTicketSubReasons(prev => prev.filter(sr => sr.reason?.id !== id && sr.parentId !== id));
+        showToast('Motivo removido');
+      }
+    } catch (err) { showToast('Erro ao remover motivo', 'danger'); }
+  };
+
+  const addTicketSubReason = async (reasonId, title) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/subreasons`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reasonId, title })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        // Normalize parentId for frontend
+        const normalized = { ...saved, parentId: saved.reason?.id || reasonId };
+        setTicketSubReasons(prev => [...prev, normalized]);
+        showToast('Submotivo adicionado');
+      }
+    } catch (err) { showToast('Erro ao adicionar submotivo', 'danger'); }
+  };
+
+  const editTicketSubReason = async (id, title) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/subreasons/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        setTicketSubReasons(prev => prev.map(sr => sr.id === id ? { ...sr, title } : sr));
+        showToast('Submotivo atualizado');
+      }
+    } catch (err) { showToast('Erro ao editar submotivo', 'danger'); }
+  };
+
+  const deleteTicketSubReason = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/subreasons/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTicketSubReasons(prev => prev.filter(sr => sr.id !== id));
+        showToast('Submotivo removido');
+      }
+    } catch (err) { showToast('Erro ao remover submotivo', 'danger'); }
+  };
+
   // ── WebSocket Chat ──
   useEffect(() => {
     const socket = new SockJS(`${API_BASE}/ws`);
@@ -329,6 +443,33 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (!activeTicketId) return;
+
+    // Fetch full message history from the API
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/management/tickets/${activeTicketId}/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map(m => ({
+            id: m.id.toString(),
+            text: m.content,
+            sender: m.senderId === 'operator' ? 'operator' : 'client',
+            time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'message'
+          }));
+          setTickets(prev => prev.map(t => 
+            t.id === activeTicketId ? { ...t, messages: mapped } : t
+          ));
+        }
+      } catch (err) {
+        console.error('Failed to fetch messages:', err);
+      }
+    };
+    fetchMessages();
+  }, [activeTicketId]);
+
+  useEffect(() => {
     if (!isConnected || !activeTicketId) return;
 
     const subscription = stompClient.current.subscribe(`/topic/chat/${activeTicketId}`, (msg) => {
@@ -363,11 +504,12 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       tickets, activeTicketId, setActiveTicketId,
-      cannedResponses, addCannedResponse, deleteCannedResponse,
+      cannedResponses, addCannedResponse, editCannedResponse, deleteCannedResponse,
       tenantConfig, updateTenantConfig,
-      assumeTicket, closeTicket, transferTicket, addMessageToTicket,
+      assumeTicket, closeTicket, transferTicket, addMessageToTicket, updateClient,
       addNoteToTicket, addEquipmentToTicket,
-      ticketReasons, ticketSubReasons,
+      ticketReasons, addTicketReason, editTicketReason, deleteTicketReason,
+      ticketSubReasons, addTicketSubReason, editTicketSubReason, deleteTicketSubReason,
       cardTypes,
       theme, toggleTheme,
       toasts, showToast,

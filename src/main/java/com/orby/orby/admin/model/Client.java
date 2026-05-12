@@ -18,6 +18,8 @@ public class Client extends TenantAwareEntity {
 
     private String phoneNumber;
 
+    private String email;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -27,4 +29,6 @@ public class Client extends TenantAwareEntity {
     public void setDocument(String document) { this.document = document; }
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

@@ -30,6 +30,17 @@ public class WhatsAppService {
     }
 
     public void sendTextMessage(String to, String text) {
+        /* 
+        // Logica para lidar com o 9º dígito brasileiro (Meta Cloud API costuma falhar com o 9)
+        if (to.startsWith("55") && to.length() == 13) {
+            // Remove o 9 (o dígito na posição index 4: 55 19 [9] ...)
+            to = to.substring(0, 4) + to.substring(5);
+        } else if (to.startsWith("+55") && to.length() == 14) {
+            // Remove o 9 (o dígito na posição index 5: +55 19 [9] ...)
+            to = to.substring(0, 5) + to.substring(6);
+        }
+        */
+
         System.out.println("WhatsAppService.sendTextMessage chamado para: " + to);
         System.out.println("Config - PhoneID: " + (phoneNumberId != null ? phoneNumberId : "NULL"));
         System.out.println("Config - Token: " + (apiToken != null && apiToken.length() > 10 ? "CARREGADO" : "FALTOU OU CURTO"));
@@ -48,15 +59,10 @@ public class WhatsAppService {
         Map<String, Object> body = new HashMap<>();
         body.put("messaging_product", "whatsapp");
         body.put("to", to.startsWith("+") ? to : "+" + to);
-        body.put("type", "template");
-
-        Map<String, Object> template = new HashMap<>();
-        template.put("name", "hello_world");
-        Map<String, String> language = new HashMap<>();
-        language.put("code", "en_US");
-        template.put("language", language);
-        
-        body.put("template", template);
+        body.put("type", "text");
+        Map<String, String> textBody = new HashMap<>();
+        textBody.put("body", text);
+        body.put("text", textBody);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 

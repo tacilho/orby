@@ -64,7 +64,9 @@ public class ChatController {
             
             if (ticket.getSource() == SupportTicketSource.WHATSAPP && !isFromClient) {
                 System.out.println("Forwarding message to WhatsApp: " + ticket.getExternalConversationId());
-                whatsappService.sendTextMessage(ticket.getExternalConversationId(), "hello_world");
+                // Prefix with operator name (hardcoded for now, later from logged-in operator)
+                String whatsAppText = "*Gabriel Otacilio:* " + chatMessage.getContent();
+                whatsappService.sendTextMessage(ticket.getExternalConversationId(), whatsAppText);
             }
 
             messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);
