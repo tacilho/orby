@@ -68,7 +68,7 @@ public class SupportTicketService {
     @Transactional
     public SupportTicket closeTicket(Long ticketId, String reason, String subReason, String comment, Integer rating) {
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Ticket não encontrado"));
         
         ticket.setStatus(TicketStatus.CLOSED);
         ticket.setClosedAt(LocalDateTime.now());
