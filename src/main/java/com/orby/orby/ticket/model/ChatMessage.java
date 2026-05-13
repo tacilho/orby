@@ -33,6 +33,9 @@ public class ChatMessage extends TenantAwareEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "sender_name")
+    private String senderName;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime timestamp;
 
@@ -53,6 +56,8 @@ public class ChatMessage extends TenantAwareEntity {
     public void setSenderId(String senderId) { this.senderId = senderId; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getSenderName() { return senderName; }
+    public void setSenderName(String senderName) { this.senderName = senderName; }
     public LocalDateTime getTimestamp() { return timestamp; }
     public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 }

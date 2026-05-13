@@ -12,7 +12,7 @@ import './index.css';
 
 function Sidebar() {
   const location = useLocation();
-  const { tenantConfig, theme, toggleTheme } = useAppContext();
+  const { tenantConfig, theme, toggleTheme, tickets } = useAppContext();
   const brandName = tenantConfig?.brandName || 'Orby';
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true';
@@ -26,8 +26,10 @@ function Sidebar() {
     });
   };
 
+  const aguardandoCount = tickets.filter(t => t.status === 'open').length;
+
   const navItems = [
-    { path: '/', label: 'Chamados', icon: LayoutList, exact: true },
+    { path: '/', label: 'Chamados', icon: LayoutList, exact: true, badge: aguardandoCount },
     { path: '/chat', label: 'Atendimento', icon: MessageSquare },
     { path: '/dashboard', label: 'Dashboard', icon: Monitor, exact: true },
     { path: '/team', label: 'Equipe', icon: Users, exact: true },
@@ -74,7 +76,14 @@ function Sidebar() {
               className={`nav-item ${isActive(item) ? 'active' : ''}`} 
               title={isCollapsed ? item.label : ''}
             >
-              <Icon size={17} />
+              <div className="nav-icon-wrapper">
+                <Icon size={17} />
+                {item.badge > 0 && (
+                  <div className="nav-badge">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </div>
+                )}
+              </div>
               {!isCollapsed && <span className="nav-text">{item.label}</span>}
             </Link>
           );

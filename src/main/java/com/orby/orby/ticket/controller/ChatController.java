@@ -64,9 +64,9 @@ public class ChatController {
             
             if (ticket.getSource() == SupportTicketSource.WHATSAPP && !isFromClient) {
                 System.out.println("Forwarding message to WhatsApp: " + ticket.getExternalConversationId());
-                // Prefix with operator name (hardcoded for now, later from logged-in operator)
-                String whatsAppText = "*Gabriel Otacilio:* " + chatMessage.getContent();
-                whatsappService.sendTextMessage(ticket.getExternalConversationId(), whatsAppText);
+                // Prefix with senderName if available
+                String prefix = chatMessage.getSenderName() != null ? "*" + chatMessage.getSenderName() + ":* " : "";
+                whatsappService.sendTextMessage(ticket.getExternalConversationId(), prefix + chatMessage.getContent());
             }
 
             messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);

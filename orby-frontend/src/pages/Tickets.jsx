@@ -1,14 +1,33 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle, ChevronRight } from 'lucide-react';
+import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle, ChevronRight, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import DateTimePicker from '../components/DateTimePicker';
+import ChatWindow from '../components/ChatWindow';
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  return date.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').slice(0, 2).join('/') + ' ' + 
+         date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 const STATUS_SECTIONS = [
   { key: 'open', label: 'Aguardando', color: 'var(--warning)' },
   { key: 'in_progress', label: 'Em Andamento', color: 'var(--info)' },
-  { key: 'pending_transfer', label: 'Aguardando Transferência', color: '#A855F7' },
+  { key: 'stand_by', label: 'Em Espera', color: 'var(--text-muted)' },
+  { key: 'pending_transfer', label: 'Transferidos', color: '#A855F7' },
   { key: 'closed', label: 'Finalizado', color: 'var(--success)' },
+  { key: 'all', label: 'Todos', color: 'var(--text-secondary)' },
 ];
 
 
@@ -113,7 +132,6 @@ function PeriodFilter({ dateRange, setDateRange, dateStart, setDateStart, dateEn
 }
 
 
-/* ── History modal ────────────────────────────────── */
 function HistoryModal({ ticket, onClose }) {
   const [selectedSubTicket, setSelectedSubTicket] = useState(null);
   const [unifiedView, setUnifiedView] = useState(false);
@@ -146,7 +164,7 @@ function HistoryModal({ ticket, onClose }) {
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span className="mono" style={{ fontWeight: 700, fontSize: '0.85rem' }}>{h.ticketId}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{h.date}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(h.date)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     <span>{h.sector}</span>
@@ -164,7 +182,7 @@ function HistoryModal({ ticket, onClose }) {
                 <button className="btn" style={{ padding: '0.25rem' }} onClick={() => { setSelectedSubTicket(null); setUnifiedView(false); }}><ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /></button>
                 <div>
                   <h2 style={{ margin: 0 }}>{unifiedView ? 'Histórico Unificado' : `Chamado ${selectedSubTicket.ticketId}`}</h2>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{unifiedView ? 'Todas as conversas' : `${selectedSubTicket.date} · ${selectedSubTicket.operator}`}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{unifiedView ? 'Todas as conversas' : `${formatDate(selectedSubTicket.date)} · ${selectedSubTicket.operator}`}</div>
                 </div>
               </div>
               <button className="close-btn" onClick={onClose}><X size={18} /></button>
@@ -214,6 +232,31 @@ function HistoryModal({ ticket, onClose }) {
   );
 }
 
+/* ── Collaborative Chat Modal ────────────────────── */
+function CollaborativeChatModal({ ticket, onClose }) {
+  if (!ticket) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
+      <div 
+        className="modal-content" 
+        style={{ 
+          width: '95vw', 
+          height: '90vh', 
+          maxWidth: '1400px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          padding: 0,
+          overflow: 'hidden'
+        }} 
+        onClick={e => e.stopPropagation()}
+      >
+        <ChatWindow ticketId={ticket.id} isModal={true} onClose={onClose} />
+      </div>
+    </div>
+  );
+}
+
 /* ── Client info expandable row ───────────────────── */
 function ClientInfoRow({ ticket, onViewHistory }) {
   return (
@@ -245,11 +288,22 @@ function ClientInfoRow({ ticket, onViewHistory }) {
     </tr>
   );
 }
+const getWaitTime = (createdAt) => {
+  if (!createdAt) return '';
+  const diffMs = new Date() - new Date(createdAt);
+  if (diffMs < 0) return '0m';
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHrs = Math.floor(diffMins / 60);
+  if (diffHrs < 24) return `${diffHrs}h ${diffMins % 60}m`;
+  const diffDays = Math.floor(diffHrs / 24);
+  return `${diffDays}d ${diffHrs % 24}h`;
+};
 
 /* ── Main Component ───────────────────────────────── */
 function Tickets() {
   const navigate = useNavigate();
-  const { tickets, assumeTicket } = useAppContext();
+  const { tickets, assumeTicket, resumeTicket, setActiveTicketId } = useAppContext();
 
   const ALL_OPERATORS = useMemo(() => {
     const ops = new Set(['Você']);
@@ -270,8 +324,10 @@ function Tickets() {
   const [sectorFilter, setSectorFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState('open');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFinishedTicket, setSelectedFinishedTicket] = useState(null);
   const [expandedTicket, setExpandedTicket] = useState(null);
   const [historyTicket, setHistoryTicket] = useState(null);
+  const [collaborativeTicket, setCollaborativeTicket] = useState(null);
 
   const clientOptions = useMemo(() => {
     const names = [...new Set(tickets.map(t => t.clientName))];
@@ -283,41 +339,175 @@ function Tickets() {
 
   const { ticketReasons, ticketSubReasons } = useAppContext();
 
-  const filteredTicketsWithoutStatus = useMemo(() => {
+/* ── Finished Ticket History Modal ───────────────── */
+const FinishedTicketHistoryModal = ({ ticket, onClose }) => {
+  const [search, setSearch] = useState('');
+  const [filterStart, setFilterStart] = useState(null);
+  const [filterEnd, setFilterEnd] = useState(null);
+  
+  if (!ticket) return null;
+
+  const filteredMessages = ticket.messages.filter(m => {
+    const matchesSearch = !search || m.text.toLowerCase().includes(search.toLowerCase());
+    const mDate = new Date(m.timestamp);
+    
+    if (filterStart && mDate < new Date(filterStart)) return false;
+    if (filterEnd) {
+      const end = new Date(filterEnd);
+      if (mDate > end) return false;
+    }
+    
+    return matchesSearch;
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal-content" style={{ maxWidth: '900px', height: '85vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header" style={{ padding: '1.25rem 1.5rem', background: 'var(--bg-panel)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 'var(--radius-sm)', background: 'var(--bg-active)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              <History size={22} />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Chamado #{ticket.id} — Histórico</h2>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                Encerrado em: <strong>{formatDate(ticket.createdAt)}</strong> • Cliente: <strong>{ticket.clientName}</strong>
+              </div>
+            </div>
+          </div>
+          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+        </div>
+
+        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-app)', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>Pesquisar Palavras</label>
+            <div className="search-input-wrap" style={{ margin: 0 }}>
+              <Search size={14} />
+              <input type="text" placeholder="Filtrar mensagens..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
+          
+          <div style={{ width: '200px' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>De (Data e Hora)</label>
+            <DateTimePicker value={filterStart} onChange={setFilterStart} placeholder="Início" style={{ height: '38px' }} />
+          </div>
+          
+          <div style={{ width: '200px' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>Até (Data e Hora)</label>
+            <DateTimePicker value={filterEnd} onChange={setFilterEnd} placeholder="Fim" style={{ height: '38px' }} align="right" />
+          </div>
+
+          {(search || filterStart || filterEnd) && (
+            <button className="btn" style={{ height: '38px', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => { setSearch(''); setFilterStart(null); setFilterEnd(null); }}>
+              Limpar
+            </button>
+          )}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {filteredMessages.length > 0 ? filteredMessages.map((msg, idx) => (
+            <div key={idx} className={`message ${msg.sender === 'operator' ? 'sent' : 'received'}`} style={{ maxWidth: '75%' }}>
+              <div style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{msg.text}</div>
+              <div style={{ fontSize: '0.65rem', opacity: 0.6, textAlign: 'right', marginTop: '0.35rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                {msg.timestamp && !isNaN(new Date(msg.timestamp).getTime()) && (
+                  <span>{new Date(msg.timestamp).toLocaleDateString()}</span>
+                )}
+                <span>{msg.time}</span>
+              </div>
+            </div>
+          )) : (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', opacity: 0.5 }}>
+              <Search size={48} style={{ marginBottom: '1rem' }} />
+              <p>Nenhuma mensagem encontrada com esses filtros.</p>
+            </div>
+          )}
+        </div>
+        
+        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', background: 'var(--bg-panel)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Mostrando <strong>{filteredMessages.length}</strong> de <strong>{ticket.messages.length}</strong> mensagens
+          </div>
+          <button className="btn" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Download size={14} /> Exportar Histórico
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+  const baseFilteredTickets = useMemo(() => {
     return tickets.filter(t => {
       if (operatorFilter.length > 0 && !operatorFilter.includes(t.operator)) return false;
       if (sectorFilter.length > 0 && !sectorFilter.includes(t.sector)) return false;
-      if (clientFilter.length > 0 && !clientFilter.includes(t.clientName)) return false;
-      if (reasonFilter.length > 0 && !reasonFilter.includes(t.reason)) return false;
-      if (subReasonFilter.length > 0 && !subReasonFilter.includes(t.subReason)) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!t.clientName.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [tickets, operatorFilter, sectorFilter, clientFilter, reasonFilter, subReasonFilter, searchQuery]);
+  }, [tickets, operatorFilter, sectorFilter, searchQuery]);
+
+  const ticketsWithDateAndAdvancedFilters = useMemo(() => {
+     return baseFilteredTickets.filter(t => {
+        const tDate = t.createdAt ? new Date(t.createdAt) : new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (statusFilter !== 'all') {
+            // Only hide old tickets if they are closed. Active tickets should always be visible.
+            if (statusFilter === 'closed' && tDate < today) return false;
+        } else {
+            if (clientFilter.length > 0 && !clientFilter.includes(t.clientName)) return false;
+            if (reasonFilter.length > 0 && !reasonFilter.includes(t.reason)) return false;
+            if (subReasonFilter.length > 0 && !subReasonFilter.includes(t.subReason)) return false;
+
+            if (dateRange === 'hoje') {
+                if (tDate < today) return false;
+            } else if (dateRange === '7d') {
+                const d7 = new Date(); d7.setDate(d7.getDate() - 7); d7.setHours(0,0,0,0);
+                if (tDate < d7) return false;
+            } else if (dateRange === '30d') {
+                const d30 = new Date(); d30.setDate(d30.getDate() - 30); d30.setHours(0,0,0,0);
+                if (tDate < d30) return false;
+            } else if (dateRange === 'custom') {
+                if (dateStart && tDate < new Date(dateStart)) return false;
+                if (dateEnd) {
+                   const end = new Date(dateEnd); end.setHours(23,59,59,999);
+                   if (tDate > end) return false;
+                }
+            }
+        }
+        return true;
+     });
+  }, [baseFilteredTickets, statusFilter, dateRange, dateStart, dateEnd, clientFilter, reasonFilter, subReasonFilter]);
 
   const counts = useMemo(() => {
     const c = {};
     STATUS_SECTIONS.forEach(s => c[s.key] = 0);
-    filteredTicketsWithoutStatus.forEach(t => { if (c[t.status] !== undefined) c[t.status]++; });
+    ticketsWithDateAndAdvancedFilters.forEach(t => { 
+        if (c[t.status] !== undefined) c[t.status]++; 
+        if (c['all'] !== undefined) c['all']++;
+    });
     return c;
-  }, [filteredTicketsWithoutStatus]);
+  }, [ticketsWithDateAndAdvancedFilters]);
 
-  const filteredTickets = useMemo(() => {
-    return filteredTicketsWithoutStatus.filter(t => {
-      if (statusFilter && t.status !== statusFilter) return false;
+  const finalTickets = useMemo(() => {
+    return ticketsWithDateAndAdvancedFilters.filter(t => {
+      if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       return true;
     });
-  }, [filteredTicketsWithoutStatus, statusFilter]);
+  }, [ticketsWithDateAndAdvancedFilters, statusFilter]);
 
   const groupedTickets = useMemo(() => {
     const groups = {};
     STATUS_SECTIONS.forEach(s => { groups[s.key] = []; });
-    filteredTickets.forEach(t => { if (groups[t.status]) groups[t.status].push(t); });
+    finalTickets.forEach(t => { 
+        if (groups[t.status]) groups[t.status].push(t); 
+        if (groups['all']) groups['all'].push(t);
+    });
     return groups;
-  }, [filteredTickets]);
+  }, [finalTickets]);
 
   const sectorLabel = (s) => ({ n1: 'Suporte N1', n2: 'Suporte N2', comercial: 'Comercial' }[s] || s);
 
@@ -335,13 +525,21 @@ function Tickets() {
 
       {/* Filters */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <PeriodFilter dateRange={dateRange} setDateRange={setDateRange} dateStart={dateStart} setDateStart={setDateStart} dateEnd={dateEnd} setDateEnd={setDateEnd} />
-        <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+        {statusFilter === 'all' && (
+          <>
+            <PeriodFilter dateRange={dateRange} setDateRange={setDateRange} dateStart={dateStart} setDateStart={setDateStart} dateEnd={dateEnd} setDateEnd={setDateEnd} />
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+          </>
+        )}
         <ChipMultiSelect icon={Users} allLabel="Operador" options={ALL_OPERATORS.map(o => ({ value: o, label: o }))} selected={operatorFilter} onChange={setOperatorFilter} />
         <ChipMultiSelect icon={Building2} allLabel="Setor" options={ALL_SECTORS} selected={sectorFilter} onChange={setSectorFilter} />
-        <ChipMultiSelect icon={Search} allLabel="Cliente" options={clientOptions} selected={clientFilter} onChange={setClientFilter} />
-        <ChipMultiSelect icon={Info} allLabel="Motivo" options={ticketReasons.map(r => ({ value: r.title, label: r.title }))} selected={reasonFilter} onChange={setReasonFilter} />
-        <ChipMultiSelect icon={Info} allLabel="Submotivo" options={ticketSubReasons.map(s => ({ value: s.title, label: s.title }))} selected={subReasonFilter} onChange={setSubReasonFilter} />
+        {statusFilter === 'all' && (
+          <>
+            <ChipMultiSelect icon={Search} allLabel="Cliente" options={clientOptions} selected={clientFilter} onChange={setClientFilter} />
+            <ChipMultiSelect icon={Info} allLabel="Motivo" options={ticketReasons.map(r => ({ value: r.title, label: r.title }))} selected={reasonFilter} onChange={setReasonFilter} />
+            <ChipMultiSelect icon={Info} allLabel="Submotivo" options={ticketSubReasons.map(s => ({ value: s.title, label: s.title }))} selected={subReasonFilter} onChange={setSubReasonFilter} />
+          </>
+        )}
         <div style={{ marginLeft: 'auto' }} className="search-input-wrap">
           <Search size={13} />
           <input type="text" placeholder="Buscar por nome ou ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -373,11 +571,7 @@ function Tickets() {
           const sectionTickets = groupedTickets[section.key] || [];
           return (
             <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderBottom: sectionTickets.length > 0 ? '1px solid var(--border-color)' : 'none' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: section.color, flexShrink: 0 }} />
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{section.label}</span>
-                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: section.color, background: section.color + '15', padding: '0.125rem 0.5rem', borderRadius: '100px' }}>{sectionTickets.length}</span>
-              </div>
+
               {sectionTickets.length > 0 ? (
                 <table className="data-table">
                   <thead>
@@ -386,6 +580,7 @@ function Tickets() {
                       <th>Cliente</th>
                       <th style={{ width: '13%' }}>Setor</th>
                       <th style={{ width: '16%' }}>Operador</th>
+                      {statusFilter === 'stand_by' && <th style={{ width: '20%' }}>Motivo da Pausa</th>}
                       <th style={{ width: '15%' }}>Status</th>
                       <th style={{ width: '9%' }}></th>
                     </tr>
@@ -393,13 +588,23 @@ function Tickets() {
                   <tbody>
                     {sectionTickets.map(ticket => (
                       <React.Fragment key={ticket.id}>
-                        <tr style={{ cursor: 'pointer' }} onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}>
+                        <tr style={{ cursor: 'pointer' }} onClick={() => {
+                          if (ticket.status === 'in_progress' || (ticket.status === 'open' && ticket.operator)) {
+                            setCollaborativeTicket(ticket);
+                          } else if (ticket.status === 'closed') {
+                            setSelectedFinishedTicket(ticket);
+                          } else {
+                            setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id);
+                          }
+                        }}>
                           <td className="mono" style={{ color: 'var(--text-muted)' }}>{ticket.id}</td>
-                          <td style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {ticket.clientName}
-                            {ticket.source === 'WHATSAPP' && (
-                              <MessageCircle size={14} style={{ color: '#25D366' }} title="Via WhatsApp" />
-                            )}
+                          <td style={{ fontWeight: 500 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {ticket.clientName}
+                              {ticket.source === 'WHATSAPP' && (
+                                <MessageCircle size={14} style={{ color: '#25D366' }} title="Via WhatsApp" />
+                              )}
+                            </div>
                           </td>
                           <td>{sectorLabel(ticket.sector)}</td>
                           <td>
@@ -408,13 +613,34 @@ function Tickets() {
                               <span style={{ fontSize: '0.6875rem', color: '#A855F7', marginLeft: '0.25rem' }}>→ {ticket.transferredTo}</span>
                             )}
                           </td>
+                          {statusFilter === 'stand_by' && (
+                            <td>
+                              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                                {ticket.standByReason || '-'}
+                              </span>
+                            </td>
+                          )}
                           <td>
-                            <span className="badge" style={{ background: section.color + '15', color: section.color, borderColor: section.color + '30' }}>{section.label}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {(() => {
+                                const tSection = STATUS_SECTIONS.find(s => s.key === ticket.status) || section;
+                                return <span className="badge" style={{ background: tSection.color + '15', color: tSection.color, borderColor: tSection.color + '30' }}>{tSection.label}</span>;
+                              })()}
+                              {['open', 'pending_transfer'].includes(ticket.status) && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '0.125rem 0.375rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <Clock size={11} /> {getWaitTime(ticket.createdAt)}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                             {canAssume(ticket) ? (
                               <button className="btn primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => { assumeTicket(ticket.id); navigate('/chat'); }}>
                                 Assumir <ArrowRight size={11} />
+                              </button>
+                            ) : ticket.status === 'stand_by' ? (
+                              <button className="btn outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-primary)', borderColor: 'var(--border-color)', background: 'transparent' }} onClick={() => { resumeTicket(ticket.id); setActiveTicketId(ticket.id); navigate('/chat'); }}>
+                                Retomar <ArrowRight size={11} />
                               </button>
                             ) : null}
                           </td>
@@ -439,7 +665,9 @@ function Tickets() {
         })()}
       </div>
 
+      {selectedFinishedTicket && <FinishedTicketHistoryModal ticket={selectedFinishedTicket} onClose={() => setSelectedFinishedTicket(null)} />}
       {historyTicket && <HistoryModal ticket={historyTicket} onClose={() => setHistoryTicket(null)} />}
+      {collaborativeTicket && <CollaborativeChatModal ticket={collaborativeTicket} onClose={() => setCollaborativeTicket(null)} />}
     </div>
   );
 }

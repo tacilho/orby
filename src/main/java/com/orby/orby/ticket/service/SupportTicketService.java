@@ -144,4 +144,49 @@ public class SupportTicketService {
         equipment.setDescription(description);
         return equipmentRepository.save(equipment);
     }
+
+    @Transactional
+    public SupportTicket standByTicket(Long ticketId, String reason) {
+        SupportTicket ticket = supportTicketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+        
+        ticket.setStatus(TicketStatus.STAND_BY);
+        ticket.setStandByReason(reason);
+        return supportTicketRepository.save(ticket);
+    }
+
+    @Transactional
+    public SupportTicket resumeTicket(Long ticketId) {
+        SupportTicket ticket = supportTicketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+        
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setStandByReason(null);
+        return supportTicketRepository.save(ticket);
+    }
+
+    public List<com.orby.orby.ticket.dto.TicketHistoryDTO> getHistoryByClientId(Long clientId) {
+        List<SupportTicket> tickets = supportTicketRepository.findAllByClientIdOrderByCreatedAtDesc(clientId);
+        return tickets.stream().map(t -> {
+            com.orby.orby.ticket.dto.TicketHistoryDTO dto = new com.orby.orby.ticket.dto.TicketHistoryDTO();
+            dto.setTicketId(t.getId().toString());
+            dto.setDate(t.getCreatedAt().toString());
+            dto.setSector(t.getSector() != null ? t.getSector().getName() : "Sem Setor");
+            dto.setOperator(t.getOperator() != null ? t.getOperator().getName() : "Não assumido");
+            dto.setReason(t.getReason());
+            dto.setSubReason(t.getSubReason());
+            
+            List<com.orby.orby.ticket.dto.TicketHistoryDTO.HistoryMessageDTO> msgDtos = t.getMessages().stream().map(m -> {
+                com.orby.orby.ticket.dto.TicketHistoryDTO.HistoryMessageDTO mDto = new com.orby.orby.ticket.dto.TicketHistoryDTO.HistoryMessageDTO();
+                mDto.setSender(m.getSenderId().equals("operator") ? "operator" : "client");
+                mDto.setText(m.getContent());
+                mDto.setTime(m.getTimestamp().toLocalTime().toString().substring(0, 5));
+                mDto.setIsDivider(false);
+                return mDto;
+            }).collect(java.util.stream.Collectors.toList());
+            
+            dto.setMessages(msgDtos);
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
+    }
 }

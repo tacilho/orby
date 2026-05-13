@@ -76,4 +76,21 @@ public class SupportTicketController {
                 request.getType(), 
                 request.getDescription()));
     }
+
+    @PutMapping("/{id}/standby")
+    public ResponseEntity<SupportTicket> standByTicket(
+            @PathVariable Long id,
+            @RequestParam String reason) {
+        return ResponseEntity.ok(supportTicketService.standByTicket(id, reason));
+    }
+
+    @PutMapping("/{id}/resume")
+    public ResponseEntity<SupportTicket> resumeTicket(@PathVariable Long id) {
+        return ResponseEntity.ok(supportTicketService.resumeTicket(id));
+    }
+
+    @GetMapping("/client/{clientId}/history")
+    public ResponseEntity<List<com.orby.orby.ticket.dto.TicketHistoryDTO>> getClientHistory(@PathVariable Long clientId) {
+        return ResponseEntity.ok(supportTicketService.getHistoryByClientId(clientId));
+    }
 }

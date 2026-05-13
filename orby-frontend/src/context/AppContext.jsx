@@ -16,6 +16,9 @@ export function AppProvider({ children }) {
   
   const [ticketReasons, setTicketReasons] = useState([]);
   const [ticketSubReasons, setTicketSubReasons] = useState([]);
+  const [standByReasons, setStandByReasons] = useState([]);
+  const [sectors, setSectors] = useState([]);
+  const [operators, setOperators] = useState([]);
   const [cannedResponses, setCannedResponses] = useState([]);
   const [cardTypes, setCardTypes] = useState([
     { id: '1', title: 'Melhoria', color: '#6366f1' },
@@ -59,12 +62,15 @@ export function AppProvider({ children }) {
 
   const fetchInitialData = async () => {
     try {
-      const [ticketsRes, reasonsRes, subResRes, cannedRes, configRes] = await Promise.all([
+      const [ticketsRes, reasonsRes, subResRes, cannedRes, configRes, standByRes, sectorsRes, operatorsRes] = await Promise.all([
         fetch(`${API_BASE}/management/tickets`),
         fetch(`${API_BASE}/api/config/reasons`),
         fetch(`${API_BASE}/api/config/subreasons`),
         fetch(`${API_BASE}/api/config/canned-responses`),
-        fetch(`${API_BASE}/api/tenant-config`)
+        fetch(`${API_BASE}/api/tenant-config`),
+        fetch(`${API_BASE}/management/standby-reasons`),
+        fetch(`${API_BASE}/management/sectors`),
+        fetch(`${API_BASE}/management/operators`)
       ]);
 
       if (ticketsRes.ok) {
@@ -81,6 +87,7 @@ export function AppProvider({ children }) {
             text: m.content,
             sender: m.senderId === 'operator' ? 'operator' : 'client',
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: m.timestamp,
             type: 'message'
           })) || [],
           notes: t.notes || [],
@@ -91,6 +98,9 @@ export function AppProvider({ children }) {
       }
 
       if (reasonsRes.ok) setTicketReasons(await reasonsRes.json());
+      if (standByRes.ok) setStandByReasons(await standByRes.json());
+      if (sectorsRes.ok) setSectors(await sectorsRes.json());
+      if (operatorsRes.ok) setOperators(await operatorsRes.json());
       if (subResRes.ok) {
         const subs = await subResRes.json();
         setTicketSubReasons(subs.map(sr => ({ ...sr, parentId: sr.reason?.id || sr.parentId })));
@@ -186,6 +196,38 @@ export function AppProvider({ children }) {
     }
   };
 
+  const standByTicket = async (id, reason) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/standby?reason=${encodeURIComponent(reason)}`, { method: 'PUT' });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === id.toString() ? { 
+          ...t, 
+          status: 'stand_by',
+          standByReason: reason
+        } : t));
+        showToast('Chamado colocado em Stand by');
+      }
+    } catch (err) {
+      showToast('Erro ao colocar em Stand by', 'danger');
+    }
+  };
+
+  const resumeTicket = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/resume`, { method: 'PUT' });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === id.toString() ? { 
+          ...t, 
+          status: 'in_progress',
+          standByReason: null
+        } : t));
+        showToast('Atendimento retomado');
+      }
+    } catch (err) {
+      showToast('Erro ao retomar chamado', 'danger');
+    }
+  };
+
   const updateClient = async (clientId, clientData) => {
     try {
       const res = await fetch(`${API_BASE}/api/management/clients/${clientId}`, {
@@ -277,6 +319,25 @@ export function AppProvider({ children }) {
     } : t));
 
     showToast('Ticket escalado para o desenvolvimento!', 'success');
+  };
+
+  const fetchTicketHistory = async (clientId) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/client/${clientId}/history`);
+      if (res.ok) {
+        const history = await res.json();
+        setTickets(prev => prev.map(t => {
+          if (t.client && t.client.id === clientId) {
+            return { ...t, history };
+          }
+          return t;
+        }));
+        return history;
+      }
+    } catch (err) {
+      console.error('Failed to fetch ticket history:', err);
+    }
+    return [];
   };
 
   const addCannedResponse = async (title, text) => {
@@ -391,6 +452,44 @@ export function AppProvider({ children }) {
     } catch (err) { showToast('Erro ao remover submotivo', 'danger'); }
   };
 
+  // ── Stand By Reasons CRUD ──
+  const addStandByReason = async (title) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/standby-reasons`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setStandByReasons(prev => [...prev, saved]);
+        showToast('Motivo de Stand by adicionado');
+      }
+    } catch (err) { showToast('Erro ao adicionar motivo', 'danger'); }
+  };
+
+  const editStandByReason = async (id, title) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/standby-reasons/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        setStandByReasons(prev => prev.map(r => r.id === id ? { ...r, title } : r));
+        showToast('Motivo de Stand by atualizado');
+      }
+    } catch (err) { showToast('Erro ao editar motivo', 'danger'); }
+  };
+
+  const deleteStandByReason = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/standby-reasons/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setStandByReasons(prev => prev.filter(r => r.id !== id));
+        showToast('Motivo de Stand by removido');
+      }
+    } catch (err) { showToast('Erro ao remover motivo', 'danger'); }
+  };
+
   // ── WebSocket Chat ──
   useEffect(() => {
     const socket = new SockJS(`${API_BASE}/ws`);
@@ -414,6 +513,7 @@ export function AppProvider({ children }) {
               text: m.content,
               sender: m.senderId === 'operator' ? 'operator' : 'client',
               time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timestamp: m.timestamp,
               type: 'message'
             })) || [],
             notes: t.notes || [],
@@ -456,6 +556,7 @@ export function AppProvider({ children }) {
             text: m.content,
             sender: m.senderId === 'operator' ? 'operator' : 'client',
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: m.timestamp,
             type: 'message'
           }));
           setTickets(prev => prev.map(t => 
@@ -479,6 +580,7 @@ export function AppProvider({ children }) {
         text: rawMsg.content,
         sender: rawMsg.senderId === 'operator' ? 'operator' : 'client',
         time: new Date(rawMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: rawMsg.timestamp,
         type: 'message'
       };
 
@@ -494,9 +596,14 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe();
   }, [isConnected, activeTicketId]);
 
-  const addMessageToTicket = (ticketId, text, sender = 'operator') => {
+  const addMessageToTicket = (ticketId, text, sender = 'operator', senderName = 'Gabriel Otacilio') => {
     if (stompClient.current && isConnected) {
-      const messagePayload = { content: text, senderId: sender, ticket: { id: parseInt(ticketId) } };
+      const messagePayload = { 
+        content: text, 
+        senderId: sender, 
+        senderName: senderName,
+        ticket: { id: parseInt(ticketId) } 
+      };
       stompClient.current.publish({ destination: `/app/chat.sendMessage/${ticketId}`, body: JSON.stringify(messagePayload) });
     }
   };
@@ -506,10 +613,12 @@ export function AppProvider({ children }) {
       tickets, activeTicketId, setActiveTicketId,
       cannedResponses, addCannedResponse, editCannedResponse, deleteCannedResponse,
       tenantConfig, updateTenantConfig,
-      assumeTicket, closeTicket, transferTicket, addMessageToTicket, updateClient,
-      addNoteToTicket, addEquipmentToTicket,
+      assumeTicket, closeTicket, transferTicket, addMessageToTicket, updateClient, standByTicket, resumeTicket,
+      addNoteToTicket, addEquipmentToTicket, fetchTicketHistory,
       ticketReasons, addTicketReason, editTicketReason, deleteTicketReason,
       ticketSubReasons, addTicketSubReason, editTicketSubReason, deleteTicketSubReason,
+      standByReasons, addStandByReason, editStandByReason, deleteStandByReason,
+      sectors, operators,
       cardTypes,
       theme, toggleTheme,
       toasts, showToast,

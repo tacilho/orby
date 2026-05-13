@@ -45,7 +45,7 @@ public class DataLoader {
             Sector s4 = createSector(sectorRepo, "Comercial");
 
             // 2. Operators
-            Operator op1 = createOperator(operatorRepo, "Ana Silva", "ana@orby.com", s1.getId());
+            Operator op1 = createOperator(operatorRepo, "Gabriel Otacilio", "gabriel@orby.com", s1.getId());
             Operator op2 = createOperator(operatorRepo, "Bruno Souza", "bruno@orby.com", s1.getId());
             Operator op3 = createOperator(operatorRepo, "Carla Dias", "carla@orby.com", s2.getId());
             Operator op4 = createOperator(operatorRepo, "Diego Lima", "diego@orby.com", s3.getId());

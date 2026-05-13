@@ -24,6 +24,9 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
     );
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
+    java.util.List<SupportTicket> findAllByClientIdOrderByCreatedAtDesc(Long clientId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"client", "sector", "operator"})
     Optional<SupportTicket> findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
             Client client,
             TicketStatus status,

@@ -24,6 +24,7 @@ public class WhatsAppWebhookController {
 
     private final ClientRepository clientRepository;
     private final SupportTicketRepository ticketRepository;
+    private final com.orby.orby.admin.repository.SectorRepository sectorRepository;
     private final ChatMessageService chatMessageService;
     private final SimpMessagingTemplate messagingTemplate;
     private final WhatsAppService whatsAppService;
@@ -33,11 +34,13 @@ public class WhatsAppWebhookController {
 
     public WhatsAppWebhookController(ClientRepository clientRepository,
                                      SupportTicketRepository ticketRepository,
+                                     com.orby.orby.admin.repository.SectorRepository sectorRepository,
                                      ChatMessageService chatMessageService,
                                      SimpMessagingTemplate messagingTemplate,
                                      WhatsAppService whatsAppService) {
         this.clientRepository = clientRepository;
         this.ticketRepository = ticketRepository;
+        this.sectorRepository = sectorRepository;
         this.chatMessageService = chatMessageService;
         this.messagingTemplate = messagingTemplate;
         this.whatsAppService = whatsAppService;
@@ -155,6 +158,10 @@ public class WhatsAppWebhookController {
             newTicket.setExternalConversationId(phoneNumber);
             newTicket.setStatus(TicketStatus.OPEN);
             newTicket.setTenantId("default");
+            
+            // Set default sector (Suporte N1)
+            sectorRepository.findAll().stream().findFirst().ifPresent(newTicket::setSector);
+            
             return ticketRepository.save(newTicket);
         });
 

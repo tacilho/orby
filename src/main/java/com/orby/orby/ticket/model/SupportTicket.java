@@ -41,6 +41,7 @@ public class SupportTicket extends TenantAwareEntity {
 
     private String reason;
     private String subReason;
+    private String standByReason;
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -83,6 +84,8 @@ public class SupportTicket extends TenantAwareEntity {
     public void setReason(String reason) { this.reason = reason; }
     public String getSubReason() { return subReason; }
     public void setSubReason(String subReason) { this.subReason = subReason; }
+    public String getStandByReason() { return standByReason; }
+    public void setStandByReason(String standByReason) { this.standByReason = standByReason; }
     public SupportTicketSource getSource() { return source; }
     public void setSource(SupportTicketSource source) { this.source = source; }
     public String getExternalConversationId() { return externalConversationId; }

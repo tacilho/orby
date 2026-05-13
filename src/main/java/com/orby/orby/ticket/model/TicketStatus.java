@@ -3,7 +3,8 @@ package com.orby.orby.ticket.model;
 public enum TicketStatus {
     OPEN("Aberto"),
     IN_PROGRESS("Em Atendimento"),
-    PENDING_TRANSFER("Transferência Pendente"),
+    STAND_BY("Em Espera"),
+    PENDING_TRANSFER("Transferidos"),
     CLOSED("Finalizado");
 
     private final String description;

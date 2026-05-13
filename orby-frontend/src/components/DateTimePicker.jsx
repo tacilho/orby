@@ -11,7 +11,7 @@ function getFirstDayOfWeek(year, month) {
   return new Date(year, month, 1).getDay();
 }
 
-function DateTimePicker({ value, onChange, placeholder = 'Selecionar data e hora...' }) {
+function DateTimePicker({ value, onChange, placeholder = 'Selecionar data e hora...', align = 'left' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const now = new Date();
@@ -116,7 +116,10 @@ function DateTimePicker({ value, onChange, placeholder = 'Selecionar data e hora
 
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200,
+          position: 'absolute', top: 'calc(100% + 4px)', 
+          left: align === 'left' ? 0 : 'auto',
+          right: align === 'right' ? 0 : 'auto',
+          zIndex: 200,
           width: '280px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
           borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', padding: '1rem',
           animation: 'fadeIn 0.15s ease-out',
