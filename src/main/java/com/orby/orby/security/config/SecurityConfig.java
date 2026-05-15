@@ -24,7 +24,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -46,7 +46,17 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(authorize -> authorize
-                .anyRequest().permitAll()
+                // Allow CORS preflight
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                // Public endpoints
+                .requestMatchers("/auth/login", "/auth/logout", "/auth/me").permitAll()
+                .requestMatchers("/api/webhooks/whatsapp").permitAll()
+                // H2 console for development only
+                .requestMatchers("/h2-console/**").permitAll()
+                // WebSocket handshake
+                .requestMatchers("/ws/**").permitAll()
+                // Everything else requires authentication
+                .anyRequest().authenticated()
         );
         http.headers(headers -> headers.frameOptions(frame -> frame.disable()));
         http.authenticationProvider(authenticationProvider());
@@ -75,12 +85,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        // Restrict to known frontend origins instead of wildcard
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:3000"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Tenant-ID", "Cache-Control"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(Collections.singletonList("Authorization"));
-        
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

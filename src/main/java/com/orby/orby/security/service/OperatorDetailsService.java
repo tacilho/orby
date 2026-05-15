@@ -24,7 +24,7 @@ public class OperatorDetailsService implements UserDetailsService {
         return User.builder()
                 .username(operator.getEmail())
                 .password(operator.getPassword())
-                .roles("OPERATOR")
+                .roles(operator.getRole().name())
                 .build();
     }
 }

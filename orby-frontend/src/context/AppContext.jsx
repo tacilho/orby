@@ -152,15 +152,16 @@ export function AppProvider({ children }) {
 
   const fetchInitialData = async () => {
     try {
+      const opts = { credentials: 'include' };
       const [ticketsRes, reasonsRes, subResRes, cannedRes, configRes, standByRes, sectorsRes, operatorsRes] = await Promise.all([
-        fetch(`${API_BASE}/management/tickets`),
-        fetch(`${API_BASE}/api/config/reasons`),
-        fetch(`${API_BASE}/api/config/subreasons`),
-        fetch(`${API_BASE}/api/config/canned-responses`),
-        fetch(`${API_BASE}/api/tenant-config`),
-        fetch(`${API_BASE}/management/standby-reasons`),
-        fetch(`${API_BASE}/management/sectors`),
-        fetch(`${API_BASE}/management/operators`)
+        fetch(`${API_BASE}/management/tickets`, opts),
+        fetch(`${API_BASE}/api/config/reasons`, opts),
+        fetch(`${API_BASE}/api/config/subreasons`, opts),
+        fetch(`${API_BASE}/api/config/canned-responses`, opts),
+        fetch(`${API_BASE}/api/tenant-config`, opts),
+        fetch(`${API_BASE}/management/standby-reasons`, opts),
+        fetch(`${API_BASE}/management/sectors`, opts),
+        fetch(`${API_BASE}/management/operators`, opts)
       ]);
 
       if (ticketsRes.ok) {
@@ -217,6 +218,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/api/tenant-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(newConfig)
       });
       if (res.ok) {
@@ -232,7 +234,7 @@ export function AppProvider({ children }) {
   // Actions
   const assumeTicket = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/management/tickets/${id}/assume?operatorId=1`, { method: 'PUT' });
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/assume?operatorId=1`, { method: 'PUT', credentials: 'include' });
       if (res.ok) {
         const updated = await res.json();
         setTickets(prev => prev.map(t => t.id === id.toString() ? { 
@@ -253,6 +255,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/management/tickets/${id}/close`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ reason, subReason, comment, rating })
       });
       if (res.ok) {
@@ -274,7 +277,7 @@ export function AppProvider({ children }) {
 
   const transferTicket = async (id, sectorId, operatorId) => {
     try {
-      const res = await fetch(`${API_BASE}/management/tickets/${id}/transfer?sectorId=${sectorId}&operatorId=${operatorId || ''}`, { method: 'PUT' });
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/transfer?sectorId=${sectorId}&operatorId=${operatorId || ''}`, { method: 'PUT', credentials: 'include' });
       if (res.ok) {
         const updated = await res.json();
         setTickets(prev => prev.map(t => t.id === id.toString() ? { 
@@ -292,7 +295,7 @@ export function AppProvider({ children }) {
 
   const standByTicket = async (id, reason) => {
     try {
-      const res = await fetch(`${API_BASE}/management/tickets/${id}/standby?reason=${encodeURIComponent(reason)}`, { method: 'PUT' });
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/standby?reason=${encodeURIComponent(reason)}`, { method: 'PUT', credentials: 'include' });
       if (res.ok) {
         setTickets(prev => prev.map(t => t.id === id.toString() ? { 
           ...t, 
@@ -308,7 +311,7 @@ export function AppProvider({ children }) {
 
   const resumeTicket = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/management/tickets/${id}/resume`, { method: 'PUT' });
+      const res = await fetch(`${API_BASE}/management/tickets/${id}/resume`, { method: 'PUT', credentials: 'include' });
       if (res.ok) {
         setTickets(prev => prev.map(t => t.id === id.toString() ? { 
           ...t, 
@@ -327,6 +330,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/api/management/clients/${clientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(clientData)
       });
       if (res.ok) {
@@ -355,6 +359,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/management/tickets/${ticketId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ text, operator: 'Você' })
       });
       if (res.ok) {
@@ -375,6 +380,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/management/tickets/${ticketId}/equipments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name, type, description })
       });
       if (res.ok) {
@@ -417,7 +423,7 @@ export function AppProvider({ children }) {
 
   const fetchTicketHistory = async (clientId) => {
     try {
-      const res = await fetch(`${API_BASE}/management/tickets/client/${clientId}/history`);
+      const res = await fetch(`${API_BASE}/management/tickets/client/${clientId}/history`, { credentials: 'include' });
       if (res.ok) {
         const history = await res.json();
         setTickets(prev => prev.map(t => {
@@ -439,6 +445,7 @@ export function AppProvider({ children }) {
       const res = await fetch(`${API_BASE}/api/config/canned-responses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ title, text })
       });
       if (res.ok) {
@@ -453,7 +460,7 @@ export function AppProvider({ children }) {
 
   const deleteCannedResponse = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/config/canned-responses/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/config/canned-responses/${id}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setCannedResponses(prev => prev.filter(c => c.id !== id));
         showToast('Resposta rápida removida');
@@ -473,7 +480,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/api/config/reasons`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        credentials: 'include', body: JSON.stringify({ title })
       });
       if (res.ok) {
         const saved = await res.json();
@@ -487,7 +494,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/api/config/reasons/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        credentials: 'include', body: JSON.stringify({ title })
       });
       if (res.ok) {
         setTicketReasons(prev => prev.map(r => r.id === id ? { ...r, title } : r));
@@ -498,7 +505,7 @@ export function AppProvider({ children }) {
 
   const deleteTicketReason = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/config/reasons/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/config/reasons/${id}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setTicketReasons(prev => prev.filter(r => r.id !== id));
         setTicketSubReasons(prev => prev.filter(sr => sr.reason?.id !== id && sr.parentId !== id));
@@ -511,7 +518,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/api/config/subreasons`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reasonId, title })
+        credentials: 'include', body: JSON.stringify({ reasonId, title })
       });
       if (res.ok) {
         const saved = await res.json();
@@ -527,7 +534,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/api/config/subreasons/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        credentials: 'include', body: JSON.stringify({ title })
       });
       if (res.ok) {
         setTicketSubReasons(prev => prev.map(sr => sr.id === id ? { ...sr, title } : sr));
@@ -538,7 +545,7 @@ export function AppProvider({ children }) {
 
   const deleteTicketSubReason = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/config/subreasons/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/config/subreasons/${id}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setTicketSubReasons(prev => prev.filter(sr => sr.id !== id));
         showToast('Submotivo removido');
@@ -551,7 +558,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/management/standby-reasons`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        credentials: 'include', body: JSON.stringify({ title })
       });
       if (res.ok) {
         const saved = await res.json();
@@ -565,7 +572,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/management/standby-reasons/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        credentials: 'include', body: JSON.stringify({ title })
       });
       if (res.ok) {
         setStandByReasons(prev => prev.map(r => r.id === id ? { ...r, title } : r));
@@ -576,7 +583,7 @@ export function AppProvider({ children }) {
 
   const deleteStandByReason = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/management/standby-reasons/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/management/standby-reasons/${id}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setStandByReasons(prev => prev.filter(r => r.id !== id));
         showToast('Motivo de Stand by removido');
@@ -642,7 +649,7 @@ export function AppProvider({ children }) {
     // Fetch full message history from the API
     const fetchMessages = async () => {
       try {
-        const res = await fetch(`${API_BASE}/management/tickets/${activeTicketId}/messages`);
+        const res = await fetch(`${API_BASE}/management/tickets/${activeTicketId}/messages`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map(m => ({
@@ -722,6 +729,7 @@ export function AppProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/api/chat/tickets/${ticketId}/media`, {
         method: 'POST',
+        credentials: 'include',
         body: formData
       });
       if (res.ok) {

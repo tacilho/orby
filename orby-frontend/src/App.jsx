@@ -1,18 +1,49 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { MessageSquare, Users, Settings, Hexagon, PanelLeftClose, PanelLeftOpen, BarChart2, LayoutList, Sun, Moon, CheckCircle, XCircle, Info, Monitor, FileBarChart } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { MessageSquare, Users, Settings, Hexagon, PanelLeftClose, PanelLeftOpen, BarChart2, LayoutList, Sun, Moon, CheckCircle, XCircle, Info, Monitor, FileBarChart, LogOut } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import Chat from './pages/Chat';
 import Team from './pages/Team';
 import Reports from './pages/Reports';
 import AppSettings from './pages/Settings';
+import Login from './pages/Login';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import './index.css';
+
+/* ── AuthGuard: redirects to /login if not authenticated ── */
+function RequireAuth({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: '0.9rem',
+        gap: '0.75rem',
+      }}>
+        <div style={{
+          width: '20px', height: '20px', border: '2px solid var(--border-color)',
+          borderTopColor: 'var(--accent-color)', borderRadius: '50%',
+          animation: 'spin 0.6s linear infinite',
+        }} />
+        Verificando sessão...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 function Sidebar() {
   const location = useLocation();
   const { tenantConfig, activeThemeId, toggleTheme, tickets } = useAppContext();
+  const { user, logout } = useAuth();
   const brandName = tenantConfig?.brandName || 'Orby';
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true';
@@ -43,6 +74,8 @@ function Sidebar() {
   };
 
   const isDarkMode = document.documentElement.getAttribute('data-theme') !== 'light';
+
+  const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -94,7 +127,35 @@ function Sidebar() {
 
       <div style={{ flex: 1 }} />
 
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+      {/* User info + Logout + Theme toggle */}
+      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        {/* Current user */}
+        {user && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.625rem',
+            padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm, 6px)',
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              background: 'var(--accent-color)', color: 'var(--accent-text)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.6rem', fontWeight: 700,
+            }}>
+              {getInitials(user.name)}
+            </div>
+            {!isCollapsed && (
+              <div style={{ flex: 1, overflow: 'hidden' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user.name}
+                </div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {user.role === 'ADMIN' ? 'Administrador' : 'Operador'}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           className="nav-item"
           onClick={toggleTheme}
@@ -103,6 +164,16 @@ function Sidebar() {
         >
           {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
           {!isCollapsed && <span className="nav-text">{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>}
+        </button>
+
+        <button
+          className="nav-item"
+          onClick={logout}
+          title={isCollapsed ? 'Sair' : ''}
+          style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', color: 'var(--text-secondary)' }}
+        >
+          <LogOut size={17} />
+          {!isCollapsed && <span className="nav-text">Sair</span>}
         </button>
       </div>
     </aside>
@@ -160,32 +231,52 @@ function ToastContainer() {
 }
 
 function AppContent() {
-  // AppContent is now minimal as theme application is handled by AppContext
   return (
     <Router>
-      <div className="app-container">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Tickets />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<AppSettings />} />
-          </Routes>
-        </main>
-        <ToastContainer />
-      </div>
+      <Routes>
+        {/* Public route */}
+        <Route path="/login" element={<LoginRoute />} />
+
+        {/* Protected routes */}
+        <Route path="/*" element={
+          <RequireAuth>
+            <AppProvider>
+              <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                  <Routes>
+                    <Route path="/" element={<Tickets />} />
+                    <Route path="/chat" element={<Chat />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/settings" element={<AppSettings />} />
+                  </Routes>
+                </main>
+                <ToastContainer />
+              </div>
+            </AppProvider>
+          </RequireAuth>
+        } />
+      </Routes>
     </Router>
   );
 }
 
+/* If already logged in, redirect away from /login */
+function LoginRoute() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+  if (isAuthenticated) return <Navigate to="/" replace />;
+  return <Login />;
+}
+
 function App() {
   return (
-    <AppProvider>
+    <AuthProvider>
       <AppContent />
-    </AppProvider>
+    </AuthProvider>
   );
 }
 

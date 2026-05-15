@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.orby.orby.shared.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 public class Operator extends TenantAwareEntity {
@@ -12,7 +13,7 @@ public class Operator extends TenantAwareEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Long sectorId;
 
     @Column(nullable = false)
@@ -23,8 +24,12 @@ public class Operator extends TenantAwareEntity {
     private String email;
 
     @Column(nullable = false)
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OperatorRole role = OperatorRole.OPERATOR;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -43,4 +48,6 @@ public class Operator extends TenantAwareEntity {
     public void setPassword(String password) { this.password = password; }
     public OperatorStatus getStatus() { return status; }
     public void setStatus(OperatorStatus status) { this.status = status; }
+    public OperatorRole getRole() { return role; }
+    public void setRole(OperatorRole role) { this.role = role; }
 }
