@@ -75,6 +75,52 @@ public class ChatController {
         }
     }
 
+    @PostMapping("/api/chat/tickets/{ticketId}/media")
+    public ResponseEntity<ChatMessage> sendMedia(@PathVariable Long ticketId,
+                                                @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                @RequestParam("type") com.orby.orby.ticket.model.ChatMessageType type,
+                                                @RequestParam(value = "caption", required = false) String caption,
+                                                @RequestParam("senderId") String senderId,
+                                                @RequestParam(value = "senderName", required = false) String senderName) {
+        TenantContext.setCurrentTenant("default");
+        try {
+            SupportTicket ticket = supportTicketService.findById(ticketId)
+                    .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+            // In a real app, you'd save the file to S3 or a local disk
+            // For now, we'll assume it's saved and we have a URL
+            // Mocking a local URL that our MediaController could serve or a public one
+            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String mockPublicUrl = "https://your-public-domain.com/api/media/files/" + filename; // This would need to be real for WhatsApp to fetch it
+
+            ChatMessage chatMessage = new ChatMessage();
+            chatMessage.setTicket(ticket);
+            chatMessage.setType(type);
+            chatMessage.setContent(caption != null ? caption : "");
+            chatMessage.setMediaUrl(mockPublicUrl);
+            chatMessage.setMimeType(file.getContentType());
+            chatMessage.setFilename(file.getOriginalFilename());
+            chatMessage.setSenderId(senderId);
+            chatMessage.setSenderName(senderName);
+            chatMessage.setTimestamp(LocalDateTime.now());
+            chatMessage.setMessageId(UUID.randomUUID().toString());
+            chatMessage.setTenantId("default");
+
+            ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
+
+            if (ticket.getSource() == SupportTicketSource.WHATSAPP) {
+                // If using public URL, Meta will fetch it.
+                // In local dev, this will fail unless using ngrok or similar.
+                whatsappService.sendMediaMessage(ticket.getExternalConversationId(), type, mockPublicUrl, caption);
+            }
+
+            messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);
+            return ResponseEntity.ok(savedMessage);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
     @GetMapping("/management/tickets/{ticketId}/messages")
     public ResponseEntity<List<ChatMessage>> getTicketMessages(@PathVariable Long ticketId) {
         return ResponseEntity.ok(chatMessageService.findMessagesByTicket(ticketId));

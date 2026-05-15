@@ -33,6 +33,18 @@ public class ChatMessage extends TenantAwareEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "message_type", nullable = false)
+    private ChatMessageType type = ChatMessageType.TEXT;
+
+    @Column(name = "media_url")
+    private String mediaUrl;
+
+    @Column(name = "mime_type")
+    private String mimeType;
+
+    @Column(name = "filename")
+    private String filename;
+
     @Column(name = "sender_name")
     private String senderName;
 
@@ -43,6 +55,9 @@ public class ChatMessage extends TenantAwareEntity {
     void defineCreationTimestamp() {
         if (this.timestamp == null) {
             this.timestamp = LocalDateTime.now();
+        }
+        if (this.type == null) {
+            this.type = ChatMessageType.TEXT;
         }
     }
 
@@ -56,6 +71,14 @@ public class ChatMessage extends TenantAwareEntity {
     public void setSenderId(String senderId) { this.senderId = senderId; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public ChatMessageType getType() { return type; }
+    public void setType(ChatMessageType type) { this.type = type; }
+    public String getMediaUrl() { return mediaUrl; }
+    public void setMediaUrl(String mediaUrl) { this.mediaUrl = mediaUrl; }
+    public String getMimeType() { return mimeType; }
+    public void setMimeType(String mimeType) { this.mimeType = mimeType; }
+    public String getFilename() { return filename; }
+    public void setFilename(String filename) { this.filename = filename; }
     public String getSenderName() { return senderName; }
     public void setSenderName(String senderName) { this.senderName = senderName; }
     public LocalDateTime getTimestamp() { return timestamp; }

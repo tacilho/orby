@@ -12,7 +12,7 @@ import './index.css';
 
 function Sidebar() {
   const location = useLocation();
-  const { tenantConfig, theme, toggleTheme, tickets } = useAppContext();
+  const { tenantConfig, activeThemeId, toggleTheme, tickets } = useAppContext();
   const brandName = tenantConfig?.brandName || 'Orby';
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true';
@@ -41,6 +41,8 @@ function Sidebar() {
     if (item.exact) return location.pathname === item.path;
     return location.pathname.includes(item.path);
   };
+
+  const isDarkMode = document.documentElement.getAttribute('data-theme') !== 'light';
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -96,11 +98,11 @@ function Sidebar() {
         <button
           className="nav-item"
           onClick={toggleTheme}
-          title={isCollapsed ? (theme === 'dark' ? 'Modo Claro' : 'Modo Escuro') : ''}
+          title={isCollapsed ? (isDarkMode ? 'Modo Claro' : 'Modo Escuro') : ''}
           style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
         >
-          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-          {!isCollapsed && <span className="nav-text">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>}
+          {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+          {!isCollapsed && <span className="nav-text">{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>}
         </button>
       </div>
     </aside>
@@ -158,60 +160,7 @@ function ToastContainer() {
 }
 
 function AppContent() {
-  const { tenantConfig, theme } = useAppContext();
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const primary = tenantConfig?.primaryColor || '#EAEAEA';
-    const accent2 = tenantConfig?.accent2;
-
-    // Always apply accent color
-    root.style.setProperty('--accent-color', primary);
-    root.style.setProperty('--accent-text', isLightHex(primary) ? '#000000' : '#FFFFFF');
-    if (accent2) root.style.setProperty('--info', accent2);
-
-    // Clear ALL surface/border inline overrides first so CSS :root / [data-theme] rules take effect
-    const surfaceVars = ['--bg-app', '--bg-panel', '--bg-hover', '--bg-active', '--border-color', '--border-focus', '--border-subtle', '--bg-sidebar'];
-    surfaceVars.forEach(v => root.style.removeProperty(v));
-
-    if (theme === 'light') {
-      // In light mode: generate tinted surfaces from the primary color
-      const { h, s } = hexToHSL(primary);
-      const isNeutral = s < 10; // grayscale accent
-
-      if (isNeutral) {
-        // For neutral/gray accents, use a cool-tinted light palette
-        root.style.setProperty('--bg-app', '#F3F4F6');
-        root.style.setProperty('--bg-panel', '#FFFFFF');
-        root.style.setProperty('--bg-hover', '#EBEDF1');
-        root.style.setProperty('--bg-active', '#E0E2E8');
-        root.style.setProperty('--border-color', '#D4D6DC');
-        root.style.setProperty('--border-focus', '#AEB2BC');
-        root.style.setProperty('--border-subtle', '#E6E8EC');
-      } else {
-        // For colored accents, tint the surfaces with the hue
-        const tintS = Math.min(s, 30); // subtle saturation for backgrounds
-        root.style.setProperty('--bg-app', `hsl(${h}, ${tintS}%, 96%)`);
-        root.style.setProperty('--bg-panel', `hsl(${h}, ${Math.min(s, 20)}%, 99%)`);
-        root.style.setProperty('--bg-hover', `hsl(${h}, ${tintS}%, 93%)`);
-        root.style.setProperty('--bg-active', `hsl(${h}, ${tintS}%, 90%)`);
-        root.style.setProperty('--border-color', `hsl(${h}, ${Math.min(s, 20)}%, 85%)`);
-        root.style.setProperty('--border-focus', `hsl(${h}, ${Math.min(s, 25)}%, 72%)`);
-        root.style.setProperty('--border-subtle', `hsl(${h}, ${Math.min(s, 15)}%, 90%)`);
-      }
-    } else {
-      // In dark mode: apply whitelabel dark palette if custom values are set
-      const sidebarColor = tenantConfig?.sidebarColor;
-      const panelBg = tenantConfig?.panelBg;
-      const appBg = tenantConfig?.appBg;
-
-      if (appBg) root.style.setProperty('--bg-app', appBg);
-      if (panelBg) root.style.setProperty('--bg-panel', panelBg);
-      if (sidebarColor) root.style.setProperty('--bg-sidebar', sidebarColor);
-      // --bg-hover, --bg-active, --border-* fall back to :root CSS defaults
-    }
-  }, [tenantConfig?.primaryColor, tenantConfig?.accent2, tenantConfig?.sidebarColor, tenantConfig?.panelBg, tenantConfig?.appBg, theme]);
-
+  // AppContent is now minimal as theme application is handled by AppContext
   return (
     <Router>
       <div className="app-container">

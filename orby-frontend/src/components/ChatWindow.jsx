@@ -56,7 +56,8 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
     cardTypes,
     isClientTyping,
     fetchTicketHistory,
-    escalateTicketToDev
+    escalateTicketToDev,
+    addMediaMessageToTicket
   } = useAppContext();
 
   const activeTicket = tickets.find(t => t.id.toString() === ticketId.toString()) || null;
@@ -132,11 +133,16 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
     setInput('');
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !activeTicket || isTransferred || isStandBy) return;
-    const isImage = file.type.startsWith('image/');
-    addMessageToTicket(activeTicket.id, file.name, 'operator', isImage ? 'image' : 'file');
+    
+    let type = 'DOCUMENT';
+    if (file.type.startsWith('image/')) type = 'IMAGE';
+    else if (file.type.startsWith('video/')) type = 'VIDEO';
+    else if (file.type.startsWith('audio/')) type = 'AUDIO';
+    
+    await addMediaMessageToTicket(activeTicket.id, file, type);
     e.target.value = '';
   };
 
@@ -159,6 +165,46 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
       </div>
     );
   }
+
+  const renderMessageContent = (msg) => {
+    const mediaUrl = msg.mediaUrl ? (msg.mediaUrl.includes('graph.facebook.com') || msg.mediaUrl.includes('lookaside.fbsbx.com') ? `http://localhost:8080/api/media/proxy?url=${encodeURIComponent(msg.mediaUrl)}` : msg.mediaUrl) : null;
+
+    switch (msg.type) {
+      case 'IMAGE':
+        return (
+          <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+            <img src={mediaUrl} alt="Image" style={{ maxWidth: '100%', maxHeight:'300px', borderRadius: 'var(--radius-sm)', cursor:'pointer', objectFit:'contain' }} onClick={() => window.open(mediaUrl, '_blank')} />
+            {msg.text && <div style={{ wordBreak:'break-word' }}>{msg.text}</div>}
+          </div>
+        );
+      case 'VIDEO':
+        return (
+          <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+            <video src={mediaUrl} controls style={{ maxWidth: '100%', maxHeight:'300px', borderRadius: 'var(--radius-sm)' }} />
+            {msg.text && <div style={{ wordBreak:'break-word' }}>{msg.text}</div>}
+          </div>
+        );
+      case 'AUDIO':
+      case 'VOICE':
+        return (
+          <div style={{ padding: '0.25rem 0', minWidth:'240px' }}>
+            <audio src={mediaUrl} controls style={{ width: '100%', height:'32px' }} />
+          </div>
+        );
+      case 'DOCUMENT':
+        return (
+          <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.75rem', background:'var(--bg-active)', borderRadius:'var(--radius-sm)', textDecoration:'none', color:'var(--text-primary)', border:'1px solid var(--border-color)' }}>
+            <FileText size={20} style={{ color:'var(--accent-color)' }} />
+            <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <span style={{ fontSize:'0.8125rem', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{msg.filename || 'Documento'}</span>
+              <span style={{ fontSize:'0.65rem', color:'var(--text-secondary)', textTransform:'uppercase' }}>{msg.mimeType?.split('/')[1] || 'FILE'}</span>
+            </div>
+          </a>
+        );
+      default:
+        return <div style={{ marginBottom: '0.25rem', wordBreak: 'break-word' }}>{msg.text}</div>;
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minWidth: 0, height: '100%' }}>
@@ -203,9 +249,9 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
           {activeTicket.messages.map((msg) => {
             if (msg.sender === 'system') return <div key={msg.id} style={{ alignSelf: 'center', margin: '1rem 0', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', fontWeight: 500, border: '1px solid rgba(245, 158, 11, 0.2)' }}>{msg.text}</div>;
             return (
-              <div key={msg.id} className={`message ${msg.sender === 'operator' ? 'sent' : 'received'}`}>
-                {msg.type === 'image' ? <div style={{ marginBottom: '0.5rem', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '120px', width: '180px' }}><ImageIcon size={32} style={{ opacity: 0.5 }} /></div> : msg.type === 'file' ? <div style={{ marginBottom: '0.5rem', padding: '0.75rem', background: 'var(--bg-active)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--border-color)' }}><FileText size={18} /><span className="mono" style={{ fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{msg.text}</span></div> : <div style={{ marginBottom: '0.25rem', wordBreak: 'break-word' }}>{msg.text}</div>}
-                <div className="mono" style={{ opacity: 0.7, textAlign: 'right', fontSize: '0.75rem' }}>{msg.time}</div>
+              <div key={msg.id} className={`message ${msg.sender === 'operator' ? 'sent' : 'received'}`} style={{ maxWidth:'85%' }}>
+                {renderMessageContent(msg)}
+                <div className="mono" style={{ opacity: 0.7, textAlign: 'right', fontSize: '0.75rem', marginTop:'0.25rem' }}>{msg.time}</div>
               </div>
             );
           })}

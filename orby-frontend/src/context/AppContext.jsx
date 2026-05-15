@@ -38,25 +38,115 @@ export function AppProvider({ children }) {
     }, 3000);
   };
 
-  // ── Brand & Theme ────────────────────────────
-  const [theme, setTheme] = useState(() => localStorage.getItem('orby_theme') || 'dark');
+  // ── Brand & Theme Engine ───────────────────────
+  const builtinThemes = {
+    'dark': {
+      name: 'Padrão (Escuro)',
+      vars: {
+        '--bg-app': '#0A0A0B', '--bg-panel': '#131316', '--bg-hover': '#1A1A1F', '--bg-active': '#22222A',
+        '--border-color': '#1E1E26', '--text-primary': '#EDEDF0', '--text-secondary': '#8A8A9A', '--text-muted': '#4A4A58'
+      }
+    },
+    'light': {
+      name: 'Padrão (Claro)',
+      vars: {
+        '--bg-app': '#F3F4F6', '--bg-panel': '#FFFFFF', '--bg-hover': '#EBEDF1', '--bg-active': '#E0E2E8',
+        '--border-color': '#D4D6DC', '--text-primary': '#111827', '--text-secondary': '#374151', '--text-muted': '#6B7280'
+      }
+    },
+    'midnight': {
+      name: 'Meia-Noite',
+      vars: {
+        '--bg-app': '#0B0F19', '--bg-panel': '#131A2A', '--bg-hover': '#1A243A', '--bg-active': '#2A3B54',
+        '--border-color': '#1E293B', '--text-primary': '#E2E8F0', '--text-secondary': '#64748B', '--text-muted': '#475569'
+      }
+    },
+    'nature': {
+      name: 'Natureza',
+      vars: {
+        '--bg-app': '#E9EDE5', '--bg-panel': '#F4F7F2', '--bg-hover': '#DFE5DA', '--bg-active': '#D2DDD0',
+        '--border-color': '#C5D1C1', '--text-primary': '#1D2A1C', '--text-secondary': '#647361', '--text-muted': '#8A9A8A'
+      }
+    },
+    'corporate': {
+      name: 'Corporativo',
+      vars: {
+        '--bg-app': '#F0F2F5', '--bg-panel': '#FFFFFF', '--bg-hover': '#E4E6E9', '--bg-active': '#D8DADF',
+        '--border-color': '#CCD0D5', '--text-primary': '#1C1E21', '--text-secondary': '#606770', '--text-muted': '#8D949E'
+      }
+    }
+  };
+
+  const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem('orby_theme_id') || 'dark');
+  const [customThemes, setCustomThemes] = useState(() => {
+    const saved = localStorage.getItem('orby_custom_themes');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [tenantConfig, setTenantConfig] = useState(() => {
     const saved = localStorage.getItem('orby_tenant_config');
     if (saved) return JSON.parse(saved);
     return {
       brandName: 'Orby',
-      primaryColor: '#EAEAEA',
+      primaryColor: '#6390FF',
+      accent2: '#6390FF',
       domain: '',
       widgetWelcome: 'Olá! Como podemos ajudar?',
     };
   });
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('orby_theme', theme);
-  }, [theme]);
+  const applyTheme = (id) => {
+    const theme = builtinThemes[id] || customThemes[id];
+    if (!theme) return;
+    
+    setActiveThemeId(id);
+    localStorage.setItem('orby_theme_id', id);
 
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    // Apply specific theme variables
+    Object.entries(theme.vars).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
+
+    // Handle data-theme attribute for CSS transitions and logic
+    const baseTheme = (id === 'light' || theme.isLight) ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', baseTheme);
+  };
+
+  const saveCustomTheme = (id, themeData) => {
+    const newThemes = { ...customThemes, [id]: themeData };
+    setCustomThemes(newThemes);
+    localStorage.setItem('orby_custom_themes', JSON.stringify(newThemes));
+    applyTheme(id);
+  };
+
+  const deleteCustomTheme = (id) => {
+    const newThemes = { ...customThemes };
+    delete newThemes[id];
+    setCustomThemes(newThemes);
+    localStorage.setItem('orby_custom_themes', JSON.stringify(newThemes));
+    if (activeThemeId === id) applyTheme('dark');
+  };
+
+  useEffect(() => {
+    applyTheme(activeThemeId);
+  }, [activeThemeId]);
+
+  // Sync tenant primary color
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent-color', tenantConfig.primaryColor);
+    // Calc accent-text color based on brightness
+    const hex = tenantConfig.primaryColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    document.documentElement.style.setProperty('--accent-text', brightness > 150 ? '#000000' : '#FFFFFF');
+  }, [tenantConfig.primaryColor]);
+
+  const toggleTheme = () => {
+    const next = activeThemeId === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+  };
 
   // ── API Integration ───────────────────────────
 
@@ -86,9 +176,13 @@ export function AppProvider({ children }) {
             id: m.id.toString(),
             text: m.content,
             sender: m.senderId === 'operator' ? 'operator' : 'client',
+            senderName: m.senderName,
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             timestamp: m.timestamp,
-            type: 'message'
+            type: m.type || 'TEXT',
+            mediaUrl: m.mediaUrl,
+            mimeType: m.mimeType,
+            filename: m.filename
           })) || [],
           notes: t.notes || [],
           equipments: t.equipments || []
@@ -555,9 +649,13 @@ export function AppProvider({ children }) {
             id: m.id.toString(),
             text: m.content,
             sender: m.senderId === 'operator' ? 'operator' : 'client',
+            senderName: m.senderName,
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             timestamp: m.timestamp,
-            type: 'message'
+            type: m.type || 'TEXT',
+            mediaUrl: m.mediaUrl,
+            mimeType: m.mimeType,
+            filename: m.filename
           }));
           setTickets(prev => prev.map(t => 
             t.id === activeTicketId ? { ...t, messages: mapped } : t
@@ -575,14 +673,18 @@ export function AppProvider({ children }) {
 
     const subscription = stompClient.current.subscribe(`/topic/chat/${activeTicketId}`, (msg) => {
       const rawMsg = JSON.parse(msg.body);
-      const formattedMsg = {
-        id: rawMsg.id.toString(),
-        text: rawMsg.content,
-        sender: rawMsg.senderId === 'operator' ? 'operator' : 'client',
-        time: new Date(rawMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: rawMsg.timestamp,
-        type: 'message'
-      };
+        const formattedMsg = {
+          id: rawMsg.id.toString(),
+          text: rawMsg.content,
+          sender: rawMsg.senderId === 'operator' ? 'operator' : 'client',
+          senderName: rawMsg.senderName,
+          time: new Date(rawMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: rawMsg.timestamp,
+          type: rawMsg.type || 'TEXT',
+          mediaUrl: rawMsg.mediaUrl,
+          mimeType: rawMsg.mimeType,
+          filename: rawMsg.filename
+        };
 
       setTickets(prev => prev.map(t => {
         if (t.id === activeTicketId) {
@@ -602,9 +704,31 @@ export function AppProvider({ children }) {
         content: text, 
         senderId: sender, 
         senderName: senderName,
+        type: 'TEXT',
         ticket: { id: parseInt(ticketId) } 
       };
       stompClient.current.publish({ destination: `/app/chat.sendMessage/${ticketId}`, body: JSON.stringify(messagePayload) });
+    }
+  };
+
+  const addMediaMessageToTicket = async (ticketId, file, type, caption = '', senderId = 'operator', senderName = 'Gabriel Otacilio') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    formData.append('caption', caption);
+    formData.append('senderId', senderId);
+    formData.append('senderName', senderName);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/tickets/${ticketId}/media`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      showToast('Erro ao enviar mídia', 'danger');
     }
   };
 
@@ -613,14 +737,14 @@ export function AppProvider({ children }) {
       tickets, activeTicketId, setActiveTicketId,
       cannedResponses, addCannedResponse, editCannedResponse, deleteCannedResponse,
       tenantConfig, updateTenantConfig,
-      assumeTicket, closeTicket, transferTicket, addMessageToTicket, updateClient, standByTicket, resumeTicket,
+      assumeTicket, closeTicket, transferTicket, addMessageToTicket, addMediaMessageToTicket, updateClient, standByTicket, resumeTicket,
       addNoteToTicket, addEquipmentToTicket, fetchTicketHistory,
       ticketReasons, addTicketReason, editTicketReason, deleteTicketReason,
       ticketSubReasons, addTicketSubReason, editTicketSubReason, deleteTicketSubReason,
       standByReasons, addStandByReason, editStandByReason, deleteStandByReason,
       sectors, operators,
       cardTypes,
-      theme, toggleTheme,
+      activeThemeId, builtinThemes, customThemes, applyTheme, saveCustomTheme, deleteCustomTheme, toggleTheme,
       toasts, showToast,
       isClientTyping, setIsClientTyping,
       kanbanCards, setKanbanCards, escalateTicketToDev

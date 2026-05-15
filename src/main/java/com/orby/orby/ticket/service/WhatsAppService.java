@@ -78,4 +78,54 @@ public class WhatsAppService {
             }
         }
     }
+
+    public String getMediaUrl(String mediaId) {
+        if (apiToken == null || apiToken.isEmpty()) return null;
+
+        String url = String.format("%s/%s", apiUrl, mediaId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(apiToken);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, request, Map.class);
+            if (response.getBody() != null) {
+                return (String) response.getBody().get("url");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to get media URL for ID " + mediaId + ": " + e.getMessage());
+        }
+        return null;
+    }
+
+    public void sendMediaMessage(String to, com.orby.orby.ticket.model.ChatMessageType type, String mediaUrl, String caption) {
+        if (phoneNumberId == null || phoneNumberId.isEmpty() || apiToken == null || apiToken.isEmpty()) return;
+
+        String url = String.format("%s/%s/messages", apiUrl, phoneNumberId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiToken);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("messaging_product", "whatsapp");
+        body.put("to", to.startsWith("+") ? to : "+" + to);
+        
+        String typeStr = type.name().toLowerCase();
+        body.put("type", typeStr);
+
+        Map<String, String> mediaBody = new HashMap<>();
+        mediaBody.put("link", mediaUrl);
+        if (caption != null && !caption.isEmpty() && (type == com.orby.orby.ticket.model.ChatMessageType.IMAGE || type == com.orby.orby.ticket.model.ChatMessageType.VIDEO)) {
+            mediaBody.put("caption", caption);
+        }
+        body.put(typeStr, mediaBody);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(url, request, String.class);
+        } catch (Exception e) {
+            System.err.println("Failed to send WhatsApp media message: " + e.getMessage());
+        }
+    }
 }

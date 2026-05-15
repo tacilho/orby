@@ -88,20 +88,37 @@ public class WhatsAppWebhookController {
 
                 for (Map<String, Object> msg : messages) {
                     String from = (String) msg.get("from");
-                    Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
-                    if (textObj == null) continue;
+                    String type = (String) msg.get("type");
                     
-                    String text = (String) textObj.get("body");
-                    if (text == null) continue;
+                    if ("text".equals(type)) {
+                        Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
+                        if (textObj != null) {
+                            String text = (String) textObj.get("body");
+                            handleIncomingMessage(from, text, ChatMessageType.TEXT, null, null);
+                        }
+                    } else if (Arrays.asList("image", "video", "audio", "voice", "document").contains(type)) {
+                        Map<String, Object> mediaObj = (Map<String, Object>) msg.get(type);
+                        if (mediaObj != null) {
+                            String mediaId = (String) mediaObj.get("id");
+                            String mimeType = (String) mediaObj.get("mime_type");
+                            String caption = (String) mediaObj.get("caption");
+                            
+                            ChatMessageType msgType = ChatMessageType.TEXT;
+                            if ("image".equals(type)) msgType = ChatMessageType.IMAGE;
+                            else if ("video".equals(type)) msgType = ChatMessageType.VIDEO;
+                            else if ("audio".equals(type)) msgType = ChatMessageType.AUDIO;
+                            else if ("voice".equals(type)) msgType = ChatMessageType.VOICE;
+                            else if ("document".equals(type)) msgType = ChatMessageType.DOCUMENT;
 
-                    System.out.println("Processing message from: " + from + " with body: " + text);
-                    handleIncomingMessage(from, text);
+                            handleIncomingMessage(from, caption != null ? caption : "", msgType, mediaId, mimeType);
+                        }
+                    }
                 }
             }
         }
     }
 
-    private void handleIncomingMessage(String phoneNumber, String text) {
+    private void handleIncomingMessage(String phoneNumber, String text, ChatMessageType type, String mediaId, String mimeType) {
         // 1. Find or create client
         Client client = clientRepository.findByPhoneNumberAndTenantId(phoneNumber, "default")
                 .orElseGet(() -> {
@@ -116,7 +133,7 @@ public class WhatsAppWebhookController {
 
         // 1.5 Check if this is a rating response (1-5) for a recently closed ticket
         String trimmed = text.trim();
-        if (trimmed.matches("^[1-5]$")) {
+        if (type == ChatMessageType.TEXT && trimmed.matches("^[1-5]$")) {
             var closedTicket = ticketRepository.findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
                     client, TicketStatus.CLOSED, "default");
             if (closedTicket.isPresent()) {
@@ -140,9 +157,8 @@ public class WhatsAppWebhookController {
                     System.err.println("Failed to send rating thank-you: " + e.getMessage());
                 }
 
-                // Notify frontend about rating update
                 messagingTemplate.convertAndSend("/topic/tickets", ticket);
-                return; // Don't create a new ticket for rating responses
+                return;
             }
         }
 
@@ -158,10 +174,7 @@ public class WhatsAppWebhookController {
             newTicket.setExternalConversationId(phoneNumber);
             newTicket.setStatus(TicketStatus.OPEN);
             newTicket.setTenantId("default");
-            
-            // Set default sector (Suporte N1)
             sectorRepository.findAll().stream().findFirst().ifPresent(newTicket::setSector);
-            
             return ticketRepository.save(newTicket);
         });
 
@@ -169,15 +182,22 @@ public class WhatsAppWebhookController {
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setTicket(ticket);
         chatMessage.setContent(text);
-        chatMessage.setSenderId(client.getId().toString()); // Use client ID as sender
+        chatMessage.setType(type);
+        chatMessage.setMimeType(mimeType);
+        chatMessage.setSenderId(client.getId().toString());
         chatMessage.setTimestamp(LocalDateTime.now());
         chatMessage.setMessageId(UUID.randomUUID().toString());
         chatMessage.setTenantId("default");
+
+        if (mediaId != null) {
+            String mediaUrl = whatsAppService.getMediaUrl(mediaId);
+            chatMessage.setMediaUrl(mediaUrl);
+        }
 
         ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
 
         // 4. Notify operators
         messagingTemplate.convertAndSend("/topic/chat/" + ticket.getId(), savedMessage);
-        messagingTemplate.convertAndSend("/topic/tickets", ticket); // Notify ticket list
+        messagingTemplate.convertAndSend("/topic/tickets", ticket);
     }
 }
