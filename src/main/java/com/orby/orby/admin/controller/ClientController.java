@@ -19,7 +19,10 @@ public class ClientController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Client> updateClient(@PathVariable Long id, @RequestBody Client clientData) {
-        String tenantId = "default"; // Hardcoded for now
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null) {
+            tenantId = "default";
+        }
         return clientRepository.findByIdAndTenantId(id, tenantId)
                 .map(client -> {
                     client.setName(clientData.getName());

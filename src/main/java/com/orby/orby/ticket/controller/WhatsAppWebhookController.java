@@ -161,7 +161,7 @@ public class WhatsAppWebhookController {
         }
     }
 
-    private void handleIncomingMessage(String phoneNumber, String text, ChatMessageType type, String mediaId, String mimeType) {
+    public void handleIncomingMessage(String phoneNumber, String text, ChatMessageType type, String mediaId, String mimeType) {
         String activeTenant = TenantContext.getCurrentTenant();
         if (activeTenant == null) {
             activeTenant = "default";
