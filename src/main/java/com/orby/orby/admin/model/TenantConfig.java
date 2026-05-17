@@ -18,6 +18,10 @@ public class TenantConfig extends TenantAwareEntity {
     private String domain;
     private String widgetWelcome;
     private String widgetColor;
+    private String whatsAppPhoneNumberId;
+    private String whatsAppApiToken;
+    private String whatsAppProvider; // "META" ou "QRCODE"
+    private String qrCodeConnectedNumber;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -39,4 +43,14 @@ public class TenantConfig extends TenantAwareEntity {
     public void setWidgetWelcome(String widgetWelcome) { this.widgetWelcome = widgetWelcome; }
     public String getWidgetColor() { return widgetColor; }
     public void setWidgetColor(String widgetColor) { this.widgetColor = widgetColor; }
+    
+    public String getWhatsAppPhoneNumberId() { return whatsAppPhoneNumberId; }
+    public void setWhatsAppPhoneNumberId(String whatsAppPhoneNumberId) { this.whatsAppPhoneNumberId = whatsAppPhoneNumberId; }
+    public String getWhatsAppApiToken() { return whatsAppApiToken; }
+    public void setWhatsAppApiToken(String whatsAppApiToken) { this.whatsAppApiToken = whatsAppApiToken; }
+
+    public String getWhatsAppProvider() { return whatsAppProvider != null ? whatsAppProvider : "META"; }
+    public void setWhatsAppProvider(String whatsAppProvider) { this.whatsAppProvider = whatsAppProvider; }
+    public String getQrCodeConnectedNumber() { return qrCodeConnectedNumber; }
+    public void setQrCodeConnectedNumber(String qrCodeConnectedNumber) { this.qrCodeConnectedNumber = qrCodeConnectedNumber; }
 }

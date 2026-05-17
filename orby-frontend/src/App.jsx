@@ -8,6 +8,8 @@ import Team from './pages/Team';
 import Reports from './pages/Reports';
 import AppSettings from './pages/Settings';
 import Login from './pages/Login';
+import MasterDashboard from './pages/MasterDashboard';
+import MasterTenants from './pages/MasterTenants';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './index.css';
@@ -59,7 +61,12 @@ function Sidebar() {
 
   const aguardandoCount = tickets.filter(t => t.status === 'open').length;
 
-  const navItems = [
+  const isMaster = user?.role === 'MASTER';
+
+  const navItems = isMaster ? [
+    { path: '/master', label: 'Controle SaaS', icon: Monitor, exact: true },
+    { path: '/master/tenants', label: 'Clientes (SaaS)', icon: Users, exact: true },
+  ] : [
     { path: '/', label: 'Chamados', icon: LayoutList, exact: true, badge: aguardandoCount },
     { path: '/chat', label: 'Atendimento', icon: MessageSquare },
     { path: '/dashboard', label: 'Dashboard', icon: Monitor, exact: true },
@@ -149,7 +156,7 @@ function Sidebar() {
                   {user.name}
                 </div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {user.role === 'ADMIN' ? 'Administrador' : 'Operador'}
+                  {user.role === 'MASTER' ? 'SaaS Master' : user.role === 'ADMIN' ? 'Administrador' : 'Operador'}
                 </div>
               </div>
             )}
@@ -231,6 +238,9 @@ function ToastContainer() {
 }
 
 function AppContent() {
+  const { user } = useAuth();
+  const isMaster = user?.role === 'MASTER';
+
   return (
     <Router>
       <Routes>
@@ -245,12 +255,23 @@ function AppContent() {
                 <Sidebar />
                 <main className="main-content">
                   <Routes>
-                    <Route path="/" element={<Tickets />} />
-                    <Route path="/chat" element={<Chat />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/settings" element={<AppSettings />} />
+                    {isMaster ? (
+                      <>
+                        <Route path="/" element={<Navigate to="/master" replace />} />
+                        <Route path="/master" element={<MasterDashboard />} />
+                        <Route path="/master/tenants" element={<MasterTenants />} />
+                        <Route path="*" element={<Navigate to="/master" replace />} />
+                      </>
+                    ) : (
+                      <>
+                        <Route path="/" element={<Tickets />} />
+                        <Route path="/chat" element={<Chat />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/team" element={<Team />} />
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/settings" element={<AppSettings />} />
+                      </>
+                    )}
                   </Routes>
                 </main>
                 <ToastContainer />

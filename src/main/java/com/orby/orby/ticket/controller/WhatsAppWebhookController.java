@@ -28,6 +28,7 @@ public class WhatsAppWebhookController {
     private final ChatMessageService chatMessageService;
     private final SimpMessagingTemplate messagingTemplate;
     private final WhatsAppService whatsAppService;
+    private final com.orby.orby.admin.repository.TenantConfigRepository tenantConfigRepository;
 
     @Value("${whatsapp.verify.token:}")
     private String verifyToken;
@@ -37,13 +38,15 @@ public class WhatsAppWebhookController {
                                      com.orby.orby.admin.repository.SectorRepository sectorRepository,
                                      ChatMessageService chatMessageService,
                                      SimpMessagingTemplate messagingTemplate,
-                                     WhatsAppService whatsAppService) {
+                                     WhatsAppService whatsAppService,
+                                     com.orby.orby.admin.repository.TenantConfigRepository tenantConfigRepository) {
         this.clientRepository = clientRepository;
         this.ticketRepository = ticketRepository;
         this.sectorRepository = sectorRepository;
         this.chatMessageService = chatMessageService;
         this.messagingTemplate = messagingTemplate;
         this.whatsAppService = whatsAppService;
+        this.tenantConfigRepository = tenantConfigRepository;
     }
 
     @GetMapping
@@ -60,7 +63,26 @@ public class WhatsAppWebhookController {
     public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
         try {
             System.out.println("Webhook received payload: " + payload);
-            TenantContext.setCurrentTenant("default"); // Hardcoded for now
+            
+            // 1. Extrair o phone_number_id do destinatário
+            String recipientPhoneId = extractRecipientPhoneId(payload);
+            String tenantId = "default";
+            
+            if (recipientPhoneId != null) {
+                // 2. Buscar qual TenantConfig possui esse Phone ID configurado no banco de forma global
+                var config = tenantConfigRepository.findByWhatsAppPhoneNumberIdWithoutFilter(recipientPhoneId);
+                if (config.isPresent()) {
+                    tenantId = config.get().getTenantId();
+                    System.out.println("Mapped webhook recipient phone_number_id " + recipientPhoneId + " to tenant: " + tenantId);
+                } else {
+                    System.out.println("No tenant found for phone_number_id: " + recipientPhoneId + ". Falling back to default.");
+                }
+            } else {
+                System.out.println("Recipient phone_number_id not found in payload. Using default tenant.");
+            }
+
+            // 3. Setar o TenantContext para esta thread
+            TenantContext.setCurrentTenant(tenantId);
             processPayload(payload);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -69,6 +91,27 @@ public class WhatsAppWebhookController {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private String extractRecipientPhoneId(Map<String, Object> payload) {
+        try {
+            List<Map<String, Object>> entries = (List<Map<String, Object>>) payload.get("entry");
+            if (entries != null && !entries.isEmpty()) {
+                List<Map<String, Object>> changes = (List<Map<String, Object>>) entries.get(0).get("changes");
+                if (changes != null && !changes.isEmpty()) {
+                    Map<String, Object> value = (Map<String, Object>) changes.get(0).get("value");
+                    if (value != null) {
+                        Map<String, Object> metadata = (Map<String, Object>) value.get("metadata");
+                        if (metadata != null) {
+                            return (String) metadata.get("phone_number_id");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erro ao extrair phone_number_id do payload da Meta: " + e.getMessage());
+        }
+        return null;
     }
 
     private void processPayload(Map<String, Object> payload) {
@@ -119,15 +162,22 @@ public class WhatsAppWebhookController {
     }
 
     private void handleIncomingMessage(String phoneNumber, String text, ChatMessageType type, String mediaId, String mimeType) {
+        String activeTenant = TenantContext.getCurrentTenant();
+        if (activeTenant == null) {
+            activeTenant = "default";
+        }
+
+        final String tenantForEntity = activeTenant;
+
         // 1. Find or create client
-        Client client = clientRepository.findByPhoneNumberAndTenantId(phoneNumber, "default")
+        Client client = clientRepository.findByPhoneNumberAndTenantId(phoneNumber, tenantForEntity)
                 .orElseGet(() -> {
-                    System.out.println("Creating new client for: " + phoneNumber);
+                    System.out.println("Creating new client for: " + phoneNumber + " in tenant: " + tenantForEntity);
                     Client newClient = new Client();
                     newClient.setName("WhatsApp User " + phoneNumber);
                     newClient.setPhoneNumber(phoneNumber);
                     newClient.setDocument("WA-" + phoneNumber); // Placeholder
-                    newClient.setTenantId("default");
+                    newClient.setTenantId(tenantForEntity);
                     return clientRepository.save(newClient);
                 });
 
@@ -135,7 +185,7 @@ public class WhatsAppWebhookController {
         String trimmed = text.trim();
         if (type == ChatMessageType.TEXT && trimmed.matches("^[1-5]$")) {
             var closedTicket = ticketRepository.findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
-                    client, TicketStatus.CLOSED, "default");
+                    client, TicketStatus.CLOSED, tenantForEntity);
             if (closedTicket.isPresent()) {
                 SupportTicket ticket = closedTicket.get();
                 ticket.setRating(Integer.parseInt(trimmed));
@@ -166,14 +216,14 @@ public class WhatsAppWebhookController {
         SupportTicket ticket = ticketRepository.findFirstByClientAndStatusInAndTenantIdOrderByCreatedAtDesc(
                 client, 
                 Arrays.asList(TicketStatus.OPEN, TicketStatus.IN_PROGRESS), 
-                "default"
+                tenantForEntity
         ).orElseGet(() -> {
             SupportTicket newTicket = new SupportTicket();
             newTicket.setClient(client);
             newTicket.setSource(SupportTicketSource.WHATSAPP);
             newTicket.setExternalConversationId(phoneNumber);
             newTicket.setStatus(TicketStatus.OPEN);
-            newTicket.setTenantId("default");
+            newTicket.setTenantId(tenantForEntity);
             sectorRepository.findAll().stream().findFirst().ifPresent(newTicket::setSector);
             return ticketRepository.save(newTicket);
         });
@@ -187,7 +237,7 @@ public class WhatsAppWebhookController {
         chatMessage.setSenderId(client.getId().toString());
         chatMessage.setTimestamp(LocalDateTime.now());
         chatMessage.setMessageId(UUID.randomUUID().toString());
-        chatMessage.setTenantId("default");
+        chatMessage.setTenantId(tenantForEntity);
 
         if (mediaId != null) {
             String mediaUrl = whatsAppService.getMediaUrl(mediaId);

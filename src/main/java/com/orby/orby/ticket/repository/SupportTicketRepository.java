@@ -32,4 +32,10 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
             TicketStatus status,
             String tenantId
     );
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT COUNT(*) FROM support_ticket", nativeQuery = true)
+    long countGlobalTickets();
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT COUNT(*) FROM support_ticket WHERE tenant_id = :tenantId", nativeQuery = true)
+    long countByTenantId(@org.springframework.data.repository.query.Param("tenantId") String tenantId);
 }

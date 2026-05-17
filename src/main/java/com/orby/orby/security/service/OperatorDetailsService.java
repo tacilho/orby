@@ -19,7 +19,7 @@ public class OperatorDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Operator operator = operatorRepository.findByEmail(username)
+        Operator operator = operatorRepository.findByEmailWithoutFilter(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Operator not found"));
         return User.builder()
                 .username(operator.getEmail())

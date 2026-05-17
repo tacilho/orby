@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Globe, Server, Check, Save, Mail, MessageCircle, Eye, Sparkles, Shield, Layers, Plus, Trash2, X, ChevronRight, Monitor, Settings as SettingsIcon } from 'lucide-react';
+import { Palette, Globe, Server, Check, Save, Mail, MessageCircle, Eye, Sparkles, Shield, Layers, Plus, Trash2, X, ChevronRight, Monitor, Settings as SettingsIcon, Smartphone, Wifi, BatteryCharging, Power, QrCode } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import ColorPicker from '../components/ColorPicker';
 
@@ -22,6 +22,13 @@ function Settings() {
   const [config, setConfig] = useState(tenantConfig);
   const [activeTab, setActiveTab] = useState('brand');
   const [savedStatus, setSavedStatus] = useState('');
+
+  // QR Code Real States (Baileys Bridge)
+  const BRIDGE_URL = 'http://localhost:3333';
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [generatingQr, setGeneratingQr] = useState(false);
+  const [bridgeStatus, setBridgeStatus] = useState(''); // '', 'connecting', 'qr_ready', 'connected'
+  const [connectedNumber, setConnectedNumber] = useState(config.qrCodeConnectedNumber || '');
   
   // Theme Creator State
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
@@ -35,7 +42,100 @@ function Settings() {
     '--border-color': '#D4D6DC'
   });
 
+  // Gerar QR Code REAL via Bridge Node.js
+  const handleGenerateQr = async () => {
+    setGeneratingQr(true);
+    setQrDataUrl(null);
+    setBridgeStatus('connecting');
+
+    const instanceName = tenantConfig.tenantId || 'default';
+
+    try {
+      // 1. Criar instância no Bridge
+      await fetch(`${BRIDGE_URL}/api/instance/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instanceName }),
+      });
+
+      // 2. Polling para obter QR Code e status
+      const pollInterval = setInterval(async () => {
+        try {
+          const resp = await fetch(`${BRIDGE_URL}/api/instance/qrcode/${instanceName}`);
+          const data = await resp.json();
+
+          if (data.status === 'qr_ready' && data.qrCode) {
+            setQrDataUrl(data.qrCode);
+            setBridgeStatus('qr_ready');
+            setGeneratingQr(false);
+          }
+
+          if (data.status === 'connected') {
+            clearInterval(pollInterval);
+            setBridgeStatus('connected');
+            setConnectedNumber(data.phoneNumber || '');
+            setGeneratingQr(false);
+            setQrDataUrl(null);
+
+            // Atualizar config local e no backend
+            const newConfig = {
+              ...config,
+              whatsAppProvider: 'QRCODE',
+              qrCodeConnectedNumber: data.phoneNumber || ''
+            };
+            setConfig(newConfig);
+            updateTenantConfig(newConfig);
+            setSavedStatus('✅ WhatsApp conectado com sucesso!');
+            setTimeout(() => setSavedStatus(''), 3000);
+          }
+        } catch (e) {
+          // Bridge pode ainda não ter respondido, continuar polling
+        }
+      }, 1500);
+
+      // Timeout de 2 minutos (o QR Code expira)
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (bridgeStatus !== 'connected') {
+          setBridgeStatus('');
+          setGeneratingQr(false);
+          setQrDataUrl(null);
+        }
+      }, 120000);
+    } catch (err) {
+      console.error('Erro ao conectar ao Bridge:', err);
+      setGeneratingQr(false);
+      setBridgeStatus('');
+      setSavedStatus('❌ Erro: WhatsApp Bridge não está rodando (porta 3333)');
+      setTimeout(() => setSavedStatus(''), 4000);
+    }
+  };
+
+  // Desconectar sessão real via Bridge Node.js
+  const handleDisconnectQr = async () => {
+    const instanceName = tenantConfig.tenantId || 'default';
+    try {
+      await fetch(`${BRIDGE_URL}/api/instance/logout/${instanceName}`, { method: 'POST' });
+    } catch (e) {
+      console.error('Erro ao desconectar:', e);
+    }
+
+    const newConfig = {
+      ...config,
+      whatsAppProvider: 'META',
+      qrCodeConnectedNumber: ''
+    };
+    setConfig(newConfig);
+    updateTenantConfig(newConfig);
+    setBridgeStatus('');
+    setConnectedNumber('');
+    setQrDataUrl(null);
+    setSavedStatus('Dispositivo desconectado!');
+    setTimeout(() => setSavedStatus(''), 2500);
+  };
+
   useEffect(() => { setConfig(tenantConfig); }, [tenantConfig]);
+  useEffect(() => { setConnectedNumber(tenantConfig.qrCodeConnectedNumber || ''); }, [tenantConfig]);
 
   const handleSave = (e) => {
     if (e) e.preventDefault();
@@ -74,6 +174,7 @@ function Settings() {
   const tabs = [
     { id: 'brand', label: 'Marca & Identidade', desc: 'Logotipo, cores e nome', icon: <Palette size={18}/> },
     { id: 'themes', label: 'Temas & Interface', desc: 'Motor de temas dinâmico', icon: <Layers size={18}/> },
+    { id: 'whatsapp', label: 'Conexão WhatsApp', desc: 'Sincronizar número via QR Code', icon: <MessageCircle size={18}/> },
     { id: 'domain', label: 'Domínio & Acesso', desc: 'URLs personalizadas e SSL', icon: <Globe size={18}/> },
     { id: 'email', label: 'E-mail (SMTP)', desc: 'Servidores de envio próprios', icon: <Mail size={18}/> },
     { id: 'widget', label: 'Widget de Chat', desc: 'Aparência do balão externo', icon: <MessageCircle size={18}/> },
@@ -204,6 +305,276 @@ function Settings() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Conexão WhatsApp Tab ─── */}
+          {activeTab==='whatsapp' && (
+            <div className="fade-in">
+              <SectionHeader 
+                title="Conexão do WhatsApp" 
+                desc="Conecte e gerencie a integração de conversas da sua empresa de forma instantânea." 
+                icon={<MessageCircle size={18}/>}
+              />
+              
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', marginTop: '1.5rem' }}>
+                {/* Opção 1: QR Code */}
+                <div 
+                  onClick={() => handleChange('whatsAppProvider', 'QRCODE')}
+                  style={{
+                    flex: 1,
+                    padding: '1.5rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: config.whatsAppProvider === 'QRCODE' ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+                    background: config.whatsAppProvider === 'QRCODE' ? 'var(--bg-active)' : 'var(--bg-panel)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: config.whatsAppProvider === 'QRCODE' ? '0 4px 12px var(--accent-color)15' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <QrCode size={20} style={{ color: 'var(--accent-color)' }} />
+                      WhatsApp QR Code
+                    </div>
+                    {config.whatsAppProvider === 'QRCODE' && <span className="badge green" style={{ fontSize: '0.7rem' }}>Ativo</span>}
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Conecte qualquer celular pessoal ou comercial instantaneamente escaneando um QR Code. Perfeito para implantação rápida sem burocracias ou custos oficiais.
+                  </p>
+                </div>
+
+                {/* Opção 2: Meta Cloud API */}
+                <div 
+                  onClick={() => handleChange('whatsAppProvider', 'META')}
+                  style={{
+                    flex: 1,
+                    padding: '1.5rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: config.whatsAppProvider === 'META' ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+                    background: config.whatsAppProvider === 'META' ? 'var(--bg-active)' : 'var(--bg-panel)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: config.whatsAppProvider === 'META' ? '0 4px 12px var(--accent-color)15' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Server size={20} style={{ color: 'var(--accent-color)' }} />
+                      Meta Cloud API (Oficial)
+                    </div>
+                    {config.whatsAppProvider === 'META' && <span className="badge green" style={{ fontSize: '0.7rem' }}>Ativo</span>}
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Integração corporativa oficial com servidores da Meta Graph API. Oferece estabilidade máxima (celular pode ficar desligado) e taxas de tráfego por mensagens.
+                  </p>
+                </div>
+              </div>
+
+              {/* Interface QR Code */}
+              {config.whatsAppProvider === 'QRCODE' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '3rem', marginTop: '2rem' }}>
+                  {/* Coluna Esquerda: Detalhes ou Instruções */}
+                  {(connectedNumber || bridgeStatus === 'connected') ? (
+                    /* Tela de Conectado */
+                    <div style={{
+                      padding: '2rem',
+                      background: 'var(--bg-app)',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border-color)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '1.5rem'
+                    }}>
+                      <div style={{ 
+                        width: '80px', 
+                        height: '80px', 
+                        borderRadius: '50%', 
+                        background: 'var(--success-light, #22c55e20)', 
+                        color: 'var(--success)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        boxShadow: '0 0 20px #22c55e20'
+                      }}>
+                        <Smartphone size={40} />
+                      </div>
+
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                          <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.125rem' }}>WhatsApp Conectado</h4>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          Número: <strong>+{connectedNumber || config.qrCodeConnectedNumber}</strong>
+                        </p>
+                      </div>
+
+                      <div style={{ width: '100%', height: '1px', background: 'var(--border-color)' }} />
+
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Wifi size={14} /> Conexão:</span>
+                          <span style={{ fontWeight: 600, color: 'var(--success)' }}>Ativa (Baileys)</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Shield size={14} /> Criptografia:</span>
+                          <span style={{ fontWeight: 600 }}>End-to-End (E2EE)</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Status da Sessão:</span>
+                          <span className="badge green" style={{ fontSize: '0.7rem' }}>Sincronizada</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={handleDisconnectQr} 
+                        className="btn danger" 
+                        style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#ef4444', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+                      >
+                        <Power size={14} /> Desconectar Celular
+                      </button>
+                    </div>
+                  ) : (
+                    /* Tela de Instruções */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div className="panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>Passo a Passo para Conectar</h4>
+                        <ol style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', lineHeight: 1.5 }}>
+                          <li>Clique em <strong>"Gerar Código QR"</strong> ao lado.</li>
+                          <li>Abra o <strong>WhatsApp</strong> no seu aparelho celular.</li>
+                          <li>Toque em <strong>Mais Opções</strong> (três pontinhos) ou <strong>Configurações</strong> e selecione <strong>Aparelhos Conectados</strong>.</li>
+                          <li>Toque em <strong>Conectar um Aparelho</strong>.</li>
+                          <li>Aponte a câmera do celular para o QR Code gerado para conectar instantaneamente!</li>
+                        </ol>
+                      </div>
+
+                      {bridgeStatus === 'connecting' && (
+                        <div className="panel" style={{ padding: '1.5rem', textAlign: 'center', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ border: '3px solid var(--border-color)', borderTop: '3px solid var(--accent-color)', borderRadius: '50%', width: '32px', height: '32px', animation: 'spin 1s linear infinite' }} />
+                            <div>
+                              <div style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                                🔄 Inicializando sessão do WhatsApp...
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aguarde a geração do QR Code.</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {bridgeStatus === 'qr_ready' && (
+                        <div className="panel" style={{ padding: '1rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--success)', fontWeight: 600 }}>
+                            <Check size={16} /> QR Code pronto! Escaneie com o celular.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Coluna Direita: Código QR Real */}
+                  {!(connectedNumber || bridgeStatus === 'connected') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                      <label className="form-label" style={{ alignSelf: 'flex-start', fontSize: '0.8125rem', fontWeight: 700 }}>Código QR de Autenticação</label>
+                      <div style={{
+                        width: '300px',
+                        height: '300px',
+                        background: '#FFFFFF',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        boxShadow: 'var(--shadow-sm)'
+                      }}>
+                        {generatingQr && !qrDataUrl && (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ border: '3px solid #e5e7eb', borderTop: '3px solid var(--accent-color)', borderRadius: '50%', width: '32px', height: '32px', animation: 'spin 1s linear infinite' }} />
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Gerando chave de sessão...</span>
+                          </div>
+                        )}
+
+                        {!generatingQr && !qrDataUrl && bridgeStatus !== 'connecting' && (
+                          <div style={{ textAlign: 'center', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                            <QrCode size={48} style={{ color: '#9ca3af' }} />
+                            <button onClick={handleGenerateQr} className="btn primary" style={{ fontSize: '0.8125rem' }}>
+                              Gerar Código QR
+                            </button>
+                          </div>
+                        )}
+
+                        {qrDataUrl && (
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/* QR Code REAL do WhatsApp */}
+                            <img 
+                              src={qrDataUrl} 
+                              alt="WhatsApp QR Code" 
+                              style={{ width: '260px', height: '260px', imageRendering: 'pixelated' }}
+                            />
+                            {/* Linha laser de escaneamento */}
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              right: 0,
+                              height: '2px',
+                              background: 'var(--accent-color)',
+                              boxShadow: '0 0 10px var(--accent-color)',
+                              animation: 'scanLine 3s ease-in-out infinite'
+                            }} />
+                          </div>
+                        )}
+                      </div>
+                      {qrDataUrl && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>📱 Escaneie este QR Code com o WhatsApp do seu celular.</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Interface Meta API */}
+              {config.whatsAppProvider === 'META' && (
+                <div style={{ maxWidth: '640px', marginTop: '2rem' }}>
+                  <div style={{ padding: '1.5rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--accent-color)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <Server size={14}/> Integração Oficial Meta Cloud API
+                    </div>
+                    <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>
+                      Vincule as credenciais de sua conta comercial do Facebook Developers. Este método se comunica com a Graph API oficial do WhatsApp Business de forma assíncrona.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Identificador do Telefone (Phone Number ID)</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Ex: 105658245199654" 
+                        value={config.whatsAppPhoneNumberId || ''} 
+                        onChange={e => handleChange('whatsAppPhoneNumberId', e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Token de Acesso Permanente (Meta Access Token)</label>
+                      <input 
+                        type="password" 
+                        className="form-control" 
+                        placeholder="EAAGzDk..." 
+                        value={config.whatsAppApiToken || ''} 
+                        onChange={e => handleChange('whatsAppApiToken', e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -46,7 +46,7 @@ public class HibernateFilterConfig implements HibernatePropertiesCustomizer {
 
         private void enableTenantFilter(org.hibernate.Session session) {
             String tenantId = TenantContext.getCurrentTenant();
-            if (tenantId != null) {
+            if (tenantId != null && !tenantId.equalsIgnoreCase("master")) {
                 session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
             }
         }

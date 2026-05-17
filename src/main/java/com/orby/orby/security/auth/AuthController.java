@@ -67,12 +67,25 @@ public class AuthController {
         }
 
         try {
+            System.out.println("--- DEBUG LOGIN START ---");
+            System.out.println("Email enviado pelo frontend: [" + email + "]");
+            System.out.println("Tamanho da senha enviada: " + (request.getPassword() != null ? request.getPassword().length() : 0));
+            
+            Operator dbOp = operatorRepository.findByEmailWithoutFilter(email).orElse(null);
+            if (dbOp == null) {
+                System.out.println("OPERADOR NÃO ENCONTRADO NO BANCO para o e-mail: [" + email + "]");
+            } else {
+                System.out.println("OPERADOR ENCONTRADO NO BANCO! E-mail: [" + dbOp.getEmail() + "], Role: " + dbOp.getRole() + ", Tenant: " + dbOp.getTenantId());
+            }
+
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, request.getPassword())
             );
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(authentication.getName());
-            String token = jwtTokenProvider.generateToken(userDetails);
+            Operator operator = operatorRepository.findByEmailWithoutFilter(email).orElse(null);
+            String tenantId = (operator != null) ? operator.getTenantId() : "default";
+            String token = jwtTokenProvider.generateToken(userDetails, tenantId);
 
             // Set JWT as HttpOnly Secure cookie
             Cookie jwtCookie = new Cookie("jwt", token);
@@ -87,7 +100,6 @@ public class AuthController {
             rateLimiter.recordSuccess(email);
 
             // Return user profile (never return the token in JSON body)
-            Operator operator = operatorRepository.findByEmail(email).orElse(null);
             Map<String, Object> profile = new HashMap<>();
             if (operator != null) {
                 profile.put("id", operator.getId());
@@ -117,7 +129,7 @@ public class AuthController {
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        Operator operator = operatorRepository.findByEmail(userDetails.getUsername()).orElse(null);
+        Operator operator = operatorRepository.findByEmailWithoutFilter(userDetails.getUsername()).orElse(null);
         if (operator == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

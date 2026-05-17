@@ -51,6 +51,7 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers("/auth/login", "/auth/logout", "/auth/me").permitAll()
                 .requestMatchers("/api/webhooks/whatsapp").permitAll()
+                .requestMatchers("/api/whatsapp-bridge/**").permitAll()
                 // H2 console for development only
                 .requestMatchers("/h2-console/**").permitAll()
                 // WebSocket handshake

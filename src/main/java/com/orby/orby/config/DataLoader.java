@@ -47,10 +47,11 @@ public class DataLoader {
             Sector s4 = createSector(sectorRepo, "Comercial");
 
             // 2. Operators
-            Operator op1 = createOperator(operatorRepo, "Gabriel Otacilio", "gabriel@orby.com", null, com.orby.orby.admin.model.OperatorRole.ADMIN, passwordEncoder);
-            Operator op2 = createOperator(operatorRepo, "Bruno Souza", "bruno@orby.com", s1.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, passwordEncoder);
-            Operator op3 = createOperator(operatorRepo, "Carla Dias", "carla@orby.com", s2.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, passwordEncoder);
-            Operator op4 = createOperator(operatorRepo, "Diego Lima", "diego@orby.com", s3.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, passwordEncoder);
+            Operator master = createOperator(operatorRepo, "Master Admin", "master@orby.com", null, com.orby.orby.admin.model.OperatorRole.MASTER, "master", passwordEncoder);
+            Operator op1 = createOperator(operatorRepo, "Gabriel Otacilio", "gabriel@orby.com", null, com.orby.orby.admin.model.OperatorRole.ADMIN, "default", passwordEncoder);
+            Operator op2 = createOperator(operatorRepo, "Bruno Souza", "bruno@orby.com", s1.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, "default", passwordEncoder);
+            Operator op3 = createOperator(operatorRepo, "Carla Dias", "carla@orby.com", s2.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, "default", passwordEncoder);
+            Operator op4 = createOperator(operatorRepo, "Diego Lima", "diego@orby.com", s3.getId(), com.orby.orby.admin.model.OperatorRole.OPERATOR, "default", passwordEncoder);
 
             // 3. Clients
             Client c1 = createClient(clientRepo, "Tech Solutions", "12.345.678/0001-01");
@@ -129,7 +130,7 @@ public class DataLoader {
         return repo.save(s);
     }
 
-    private Operator createOperator(OperatorRepository repo, String name, String email, Long sectorId, com.orby.orby.admin.model.OperatorRole role, PasswordEncoder passwordEncoder) {
+    private Operator createOperator(OperatorRepository repo, String name, String email, Long sectorId, com.orby.orby.admin.model.OperatorRole role, String tenantId, PasswordEncoder passwordEncoder) {
         Operator o = new Operator();
         o.setName(name);
         o.setEmail(email);
@@ -137,7 +138,7 @@ public class DataLoader {
         o.setPassword(passwordEncoder.encode("123456"));
         o.setStatus(OperatorStatus.ONLINE);
         o.setRole(role);
-        o.setTenantId("default");
+        o.setTenantId(tenantId);
         return repo.save(o);
     }
 

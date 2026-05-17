@@ -24,14 +24,23 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, "default");
+    }
+
+    public String generateToken(UserDetails userDetails, String tenantId) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(properties.getExpirationSeconds());
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim("tenantId", tenantId)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(expiry))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public String extractTenantId(String token) {
+        return extractClaim(token, claims -> claims.get("tenantId", String.class));
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
