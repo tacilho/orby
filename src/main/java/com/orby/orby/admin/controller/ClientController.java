@@ -1,8 +1,7 @@
 package com.orby.orby.admin.controller;
 
 import com.orby.orby.admin.model.Client;
-import com.orby.orby.admin.repository.ClientRepository;
-import com.orby.orby.shared.tenant.TenantContext;
+import com.orby.orby.admin.service.ClientService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,25 +10,21 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class ClientController {
 
-    private final ClientRepository clientRepository;
+    private final ClientService clientService;
 
-    public ClientController(ClientRepository clientRepository) {
-        this.clientRepository = clientRepository;
+    public ClientController(ClientService clientService) {
+        this.clientService = clientService;
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Client> updateClient(@PathVariable Long id, @RequestBody Client clientData) {
-        String tenantId = com.orby.orby.shared.tenant.TenantContext.getCurrentTenant();
-        if (tenantId == null || tenantId.isEmpty()) {
-            tenantId = "default";
-        }
-        return clientRepository.findByIdAndTenantId(id, tenantId)
+        return clientService.findById(id)
                 .map(client -> {
                     client.setName(clientData.getName());
                     client.setDocument(clientData.getDocument());
                     client.setPhoneNumber(clientData.getPhoneNumber());
                     client.setEmail(clientData.getEmail());
-                    return ResponseEntity.ok(clientRepository.save(client));
+                    return ResponseEntity.ok(clientService.save(client));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

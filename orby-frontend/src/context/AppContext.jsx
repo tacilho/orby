@@ -243,6 +243,7 @@ export function AppProvider({ children }) {
           operator: updated.operator?.name || 'Você',
           acceptedAt: updated.acceptedAt 
         } : t));
+        setActiveTicketId(id.toString());
         showToast('Chamado assumido com sucesso');
       }
     } catch (err) {
@@ -393,6 +394,84 @@ export function AppProvider({ children }) {
       }
     } catch (err) {
       showToast('Erro ao adicionar equipamento', 'danger');
+    }
+  };
+
+  const editNoteInTicket = async (ticketId, noteId, text) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/notes/${noteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) {
+        const updatedNote = await res.json();
+        setTickets(prev => prev.map(t => t.id === ticketId.toString() ? { 
+          ...t, 
+          notes: (t.notes || []).map(n => n.id === noteId ? updatedNote : n) 
+        } : t));
+        showToast('Nota atualizada');
+      }
+    } catch (err) {
+      showToast('Erro ao atualizar nota', 'danger');
+    }
+  };
+
+  const deleteNoteFromTicket = async (ticketId, noteId) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/notes/${noteId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === ticketId.toString() ? { 
+          ...t, 
+          notes: (t.notes || []).filter(n => n.id !== noteId) 
+        } : t));
+        showToast('Nota excluída');
+      }
+    } catch (err) {
+      showToast('Erro ao excluir nota', 'danger');
+    }
+  };
+
+  const editEquipmentInTicket = async (ticketId, equipmentId, name, type, description) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/equipments/${equipmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, type, description })
+      });
+      if (res.ok) {
+        const updatedEq = await res.json();
+        setTickets(prev => prev.map(t => t.id === ticketId.toString() ? { 
+          ...t, 
+          equipments: (t.equipments || []).map(e => e.id === equipmentId ? updatedEq : e) 
+        } : t));
+        showToast('Equipamento atualizado');
+      }
+    } catch (err) {
+      showToast('Erro ao atualizar equipamento', 'danger');
+    }
+  };
+
+  const deleteEquipmentFromTicket = async (ticketId, equipmentId) => {
+    try {
+      const res = await fetch(`${API_BASE}/management/tickets/equipments/${equipmentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === ticketId.toString() ? { 
+          ...t, 
+          equipments: (t.equipments || []).filter(e => e.id !== equipmentId) 
+        } : t));
+        showToast('Equipamento excluído');
+      }
+    } catch (err) {
+      showToast('Erro ao excluir equipamento', 'danger');
     }
   };
 
@@ -621,7 +700,9 @@ export function AppProvider({ children }) {
             equipments: t.equipments || []
           };
           setTickets(prev => {
-            if (prev.some(existing => existing.id === mapped.id)) return prev;
+            if (prev.some(existing => existing.id === mapped.id)) {
+              return prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing);
+            }
             return [mapped, ...prev];
           });
           showToast(`Novo chamado de ${mapped.clientName}`, "info");
@@ -746,7 +827,9 @@ export function AppProvider({ children }) {
       cannedResponses, addCannedResponse, editCannedResponse, deleteCannedResponse,
       tenantConfig, updateTenantConfig,
       assumeTicket, closeTicket, transferTicket, addMessageToTicket, addMediaMessageToTicket, updateClient, standByTicket, resumeTicket,
-      addNoteToTicket, addEquipmentToTicket, fetchTicketHistory,
+      addNoteToTicket, editNoteInTicket, deleteNoteFromTicket,
+      addEquipmentToTicket, editEquipmentInTicket, deleteEquipmentFromTicket,
+      fetchTicketHistory,
       ticketReasons, addTicketReason, editTicketReason, deleteTicketReason,
       ticketSubReasons, addTicketSubReason, editTicketSubReason, deleteTicketSubReason,
       standByReasons, addStandByReason, editStandByReason, deleteStandByReason,

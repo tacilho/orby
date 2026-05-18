@@ -375,8 +375,8 @@ function Reports() {
                         ))}
                       </div>
                     </td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.comment}>
-                      {t.comment || '—'}
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.closingComment}>
+                      {t.closingComment || '—'}
                     </td>
                   </tr>
                 ))}

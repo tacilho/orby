@@ -18,12 +18,29 @@ app.use(express.json());
 
 const PORT = 3333;
 const ORBY_BACKEND_URL = process.env.ORBY_BACKEND_URL || 'http://localhost:8080';
+const ORBY_M2M_TOKEN = process.env.ORBY_M2M_TOKEN || 'ORBY_SUPER_SECRET_M2M_TOKEN_12345';
 
 // ─── In-memory store for active sessions ───
 const sessions = new Map();
 
 // Logger silencioso para o Baileys
 const logger = pino({ level: 'silent' });
+
+// ─── Security: Path Traversal & Injection Validator Middleware ───
+function validateInstanceName(req, res, next) {
+  const instanceName = req.params.instanceName || req.body.instanceName;
+  if (!instanceName) {
+    return next();
+  }
+
+  // Regex: Apenas letras, números, hífen e sublinhado. Bloqueia barras, pontos e caracteres especiais.
+  const safeRegex = /^[a-zA-Z0-9_-]+$/;
+  if (!safeRegex.test(instanceName)) {
+    console.error(`[Security Warning] 🛑 Tentativa de injeção ou traversal detectada com instanceName: "${instanceName}"`);
+    return res.status(400).json({ error: 'instanceName inválido. Apenas letras, números, hífen e sublinhado são permitidos.' });
+  }
+  next();
+}
 
 // ─── Helpers ───
 function getSessionDir(instanceName) {
@@ -145,11 +162,15 @@ async function connectToWhatsApp(instanceName) {
       // Limpar excesso de LID-mapping após conectar com sucesso
       cleanupLidFiles(instanceName);
 
-      // Notificar backend Java do Orby
+      // Notificar backend Java do Orby (com autenticação M2M)
       try {
         const response = await fetch(`${ORBY_BACKEND_URL}/api/whatsapp-bridge/connected`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-M2M-Token': ORBY_M2M_TOKEN,
+            'X-Tenant-ID': instanceName
+          },
           body: JSON.stringify({
             instanceName,
             phoneNumber: number,
@@ -176,8 +197,6 @@ async function connectToWhatsApp(instanceName) {
       const senderJid = msg.key.remoteJid;
       if (!senderJid || senderJid.endsWith('@g.us')) continue;
 
-      // Envia o JID completo (incluindo @lid ou @s.whatsapp.net) para o backend do Orby.
-      // Desta forma o externalConversationId do ticket contera o identificador exato do destinatario.
       const senderNumber = senderJid; 
       const senderName = msg.pushName || senderJid.split('@')[0];
 
@@ -207,7 +226,11 @@ async function connectToWhatsApp(instanceName) {
       try {
         await fetch(`${ORBY_BACKEND_URL}/api/whatsapp-bridge/message`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-M2M-Token': ORBY_M2M_TOKEN,
+            'X-Tenant-ID': instanceName
+          },
           body: JSON.stringify({
             instanceName,
             senderNumber,
@@ -240,10 +263,14 @@ function loadSavedSessions() {
       const fullPath = path.join(sessionsDir, dirName);
       if (fs.statSync(fullPath).isDirectory()) {
         if (fs.existsSync(path.join(fullPath, 'creds.json'))) {
-          console.log(`[Startup] 🔄 Carregando sessão salva da pasta: "${dirName}"`);
-          connectToWhatsApp(dirName).catch(err => {
-            console.error(`[Startup] Erro ao iniciar sessão "${dirName}":`, err);
-          });
+          // Validar o nome do diretório antes de reconectar para evitar travamento ou leitura de pasta fraudulenta
+          const safeRegex = /^[a-zA-Z0-9_-]+$/;
+          if (safeRegex.test(dirName)) {
+            console.log(`[Startup] 🔄 Carregando sessão salva da pasta: "${dirName}"`);
+            connectToWhatsApp(dirName).catch(err => {
+              console.error(`[Startup] Erro ao iniciar sessão "${dirName}":`, err);
+            });
+          }
         }
       }
     }
@@ -273,7 +300,7 @@ function resolveJid(number) {
 }
 
 // ─── API: Create/Connect Instance & Get QR Code ───
-app.post('/api/instance/create', async (req, res) => {
+app.post('/api/instance/create', validateInstanceName, async (req, res) => {
   const { instanceName } = req.body;
   if (!instanceName) {
     return res.status(400).json({ error: 'instanceName is required' });
@@ -306,7 +333,7 @@ app.post('/api/instance/create', async (req, res) => {
 });
 
 // ─── API: Get QR Code ───
-app.get('/api/instance/qrcode/:instanceName', (req, res) => {
+app.get('/api/instance/qrcode/:instanceName', validateInstanceName, (req, res) => {
   const { instanceName } = req.params;
   const session = sessions.get(instanceName);
 
@@ -322,7 +349,7 @@ app.get('/api/instance/qrcode/:instanceName', (req, res) => {
 });
 
 // ─── API: Get Connection Status ───
-app.get('/api/instance/status/:instanceName', (req, res) => {
+app.get('/api/instance/status/:instanceName', validateInstanceName, (req, res) => {
   const { instanceName } = req.params;
   const session = sessions.get(instanceName);
 
@@ -337,7 +364,7 @@ app.get('/api/instance/status/:instanceName', (req, res) => {
 });
 
 // ─── API: Send Text Message ───
-app.post('/api/message/sendText/:instanceName', async (req, res) => {
+app.post('/api/message/sendText/:instanceName', validateInstanceName, async (req, res) => {
   const { instanceName } = req.params;
   const { number, text } = req.body;
   const session = sessions.get(instanceName);
@@ -358,7 +385,7 @@ app.post('/api/message/sendText/:instanceName', async (req, res) => {
 });
 
 // ─── API: Send Media Message ───
-app.post('/api/message/sendMedia/:instanceName', async (req, res) => {
+app.post('/api/message/sendMedia/:instanceName', validateInstanceName, async (req, res) => {
   const { instanceName } = req.params;
   const { number, mediaUrl, type, caption } = req.body;
   const session = sessions.get(instanceName);
@@ -395,7 +422,7 @@ app.post('/api/message/sendMedia/:instanceName', async (req, res) => {
 });
 
 // ─── API: Disconnect / Logout ───
-app.post('/api/instance/logout/:instanceName', async (req, res) => {
+app.post('/api/instance/logout/:instanceName', validateInstanceName, async (req, res) => {
   const { instanceName } = req.params;
   const session = sessions.get(instanceName);
 

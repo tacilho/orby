@@ -1,34 +1,23 @@
 package com.orby.orby.ticket.controller;
 
-import com.orby.orby.admin.model.Client;
-import com.orby.orby.admin.repository.ClientRepository;
+import com.orby.orby.admin.service.TenantConfigService;
 import com.orby.orby.shared.tenant.TenantContext;
-import com.orby.orby.ticket.model.*;
-import com.orby.orby.ticket.repository.SupportTicketRepository;
-import com.orby.orby.ticket.service.ChatMessageService;
-import com.orby.orby.ticket.service.WhatsAppService;
+import com.orby.orby.ticket.model.ChatMessageType;
+import com.orby.orby.ticket.service.ChatService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/webhooks/whatsapp")
 public class WhatsAppWebhookController {
 
-    private final ClientRepository clientRepository;
-    private final SupportTicketRepository ticketRepository;
-    private final com.orby.orby.admin.repository.SectorRepository sectorRepository;
-    private final ChatMessageService chatMessageService;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final WhatsAppService whatsAppService;
-    private final com.orby.orby.admin.repository.TenantConfigRepository tenantConfigRepository;
+    private final ChatService chatService;
+    private final TenantConfigService tenantConfigService;
 
     @Value("${whatsapp.verify.token:}")
     private String verifyToken;
@@ -36,20 +25,10 @@ public class WhatsAppWebhookController {
     @Value("${whatsapp.app.secret:}")
     private String appSecret;
 
-    public WhatsAppWebhookController(ClientRepository clientRepository,
-                                     SupportTicketRepository ticketRepository,
-                                     com.orby.orby.admin.repository.SectorRepository sectorRepository,
-                                     ChatMessageService chatMessageService,
-                                     SimpMessagingTemplate messagingTemplate,
-                                     WhatsAppService whatsAppService,
-                                     com.orby.orby.admin.repository.TenantConfigRepository tenantConfigRepository) {
-        this.clientRepository = clientRepository;
-        this.ticketRepository = ticketRepository;
-        this.sectorRepository = sectorRepository;
-        this.chatMessageService = chatMessageService;
-        this.messagingTemplate = messagingTemplate;
-        this.whatsAppService = whatsAppService;
-        this.tenantConfigRepository = tenantConfigRepository;
+    public WhatsAppWebhookController(ChatService chatService,
+                                     TenantConfigService tenantConfigService) {
+        this.chatService = chatService;
+        this.tenantConfigService = tenantConfigService;
     }
 
     @GetMapping
@@ -87,8 +66,8 @@ public class WhatsAppWebhookController {
             String tenantId = "default";
             
             if (recipientPhoneId != null) {
-                // 2. Buscar qual TenantConfig possui esse Phone ID configurado no banco de forma global
-                var config = tenantConfigRepository.findByWhatsAppPhoneNumberIdWithoutFilter(recipientPhoneId);
+                // 2. Buscar qual TenantConfig possui esse Phone ID configurado no banco
+                var config = tenantConfigService.findByWhatsAppPhoneNumberIdWithoutFilter(recipientPhoneId);
                 if (config.isPresent()) {
                     tenantId = config.get().getTenantId();
                     System.out.println("Mapped webhook recipient phone_number_id " + recipientPhoneId + " to tenant: " + tenantId);
@@ -105,7 +84,7 @@ public class WhatsAppWebhookController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.ok().build(); // Always return 200 to Meta to avoid retries on failure
+            return ResponseEntity.ok().build(); // Retorna 200 para o Facebook evitar retentativas de webhook com erro
         } finally {
             TenantContext.clear();
         }
@@ -155,7 +134,7 @@ public class WhatsAppWebhookController {
                         Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
                         if (textObj != null) {
                             String text = (String) textObj.get("body");
-                            handleIncomingMessage(from, text, ChatMessageType.TEXT, null, null);
+                            chatService.handleIncomingMessage(from, text, ChatMessageType.TEXT, null, null);
                         }
                     } else if (Arrays.asList("image", "video", "audio", "voice", "document").contains(type)) {
                         Map<String, Object> mediaObj = (Map<String, Object>) msg.get(type);
@@ -171,7 +150,7 @@ public class WhatsAppWebhookController {
                             else if ("voice".equals(type)) msgType = ChatMessageType.VOICE;
                             else if ("document".equals(type)) msgType = ChatMessageType.DOCUMENT;
 
-                            handleIncomingMessage(from, caption != null ? caption : "", msgType, mediaId, mimeType);
+                            chatService.handleIncomingMessage(from, caption != null ? caption : "", msgType, mediaId, mimeType);
                         }
                     }
                 }
@@ -179,99 +158,8 @@ public class WhatsAppWebhookController {
         }
     }
 
-    public void handleIncomingMessage(String phoneNumber, String text, ChatMessageType type, String mediaId, String mimeType) {
-        String activeTenant = TenantContext.getCurrentTenant();
-        if (activeTenant == null) {
-            activeTenant = "default";
-        }
-
-        final String tenantForEntity = activeTenant;
-
-        // 1. Find or create client
-        Client client = clientRepository.findByPhoneNumberAndTenantId(phoneNumber, tenantForEntity)
-                .orElseGet(() -> {
-                    System.out.println("Creating new client for: " + phoneNumber + " in tenant: " + tenantForEntity);
-                    Client newClient = new Client();
-                    newClient.setName("WhatsApp User " + phoneNumber);
-                    newClient.setPhoneNumber(phoneNumber);
-                    newClient.setDocument("WA-" + phoneNumber); // Placeholder
-                    newClient.setTenantId(tenantForEntity);
-                    return clientRepository.save(newClient);
-                });
-
-        // 1.5 Check if this is a rating response (1-5) for a recently closed ticket
-        String trimmed = text.trim();
-        if (type == ChatMessageType.TEXT && trimmed.matches("^[1-5]$")) {
-            var closedTicket = ticketRepository.findFirstByClientAndStatusAndRatingIsNullAndTenantIdOrderByClosedAtDesc(
-                    client, TicketStatus.CLOSED, tenantForEntity);
-            if (closedTicket.isPresent()) {
-                SupportTicket ticket = closedTicket.get();
-                ticket.setRating(Integer.parseInt(trimmed));
-                ticketRepository.save(ticket);
-                System.out.println("Rating " + trimmed + " saved for ticket " + ticket.getId());
-
-                // Send thank you message
-                try {
-                    String[] thanks = {
-                        "😔 Obrigado pelo seu feedback. Vamos melhorar!",
-                        "😐 Obrigado pelo feedback. Vamos trabalhar para melhorar.",
-                        "🙂 Obrigado pela avaliação!",
-                        "😊 Obrigado! Ficamos felizes com sua avaliação!",
-                        "🎉 Muito obrigado! Excelente saber que gostou do atendimento!"
-                    };
-                    int idx = Integer.parseInt(trimmed) - 1;
-                    whatsAppService.sendTextMessage(phoneNumber, thanks[idx]);
-                } catch (Exception e) {
-                    System.err.println("Failed to send rating thank-you: " + e.getMessage());
-                }
-
-                messagingTemplate.convertAndSend("/topic/tickets", ticket);
-                return;
-            }
-        }
-
-        // 2. Find or create ticket
-        SupportTicket ticket = ticketRepository.findFirstByClientAndStatusInAndTenantIdOrderByCreatedAtDesc(
-                client, 
-                Arrays.asList(TicketStatus.OPEN, TicketStatus.IN_PROGRESS), 
-                tenantForEntity
-        ).orElseGet(() -> {
-            SupportTicket newTicket = new SupportTicket();
-            newTicket.setClient(client);
-            newTicket.setSource(SupportTicketSource.WHATSAPP);
-            newTicket.setExternalConversationId(phoneNumber);
-            newTicket.setStatus(TicketStatus.OPEN);
-            newTicket.setTenantId(tenantForEntity);
-            sectorRepository.findAll().stream().findFirst().ifPresent(newTicket::setSector);
-            return ticketRepository.save(newTicket);
-        });
-
-        // 3. Save message
-        ChatMessage chatMessage = new ChatMessage();
-        chatMessage.setTicket(ticket);
-        chatMessage.setContent(text);
-        chatMessage.setType(type);
-        chatMessage.setMimeType(mimeType);
-        chatMessage.setSenderId(client.getId().toString());
-        chatMessage.setTimestamp(LocalDateTime.now());
-        chatMessage.setMessageId(UUID.randomUUID().toString());
-        chatMessage.setTenantId(tenantForEntity);
-
-        if (mediaId != null) {
-            String mediaUrl = whatsAppService.getMediaUrl(mediaId);
-            chatMessage.setMediaUrl(mediaUrl);
-        }
-
-        ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
-
-        // 4. Notify operators
-        messagingTemplate.convertAndSend("/topic/chat/" + ticket.getId(), savedMessage);
-        messagingTemplate.convertAndSend("/topic/tickets", ticket);
-    }
-
     private boolean isSignatureValid(String body, String signatureHeader) {
         if (appSecret == null || appSecret.isEmpty()) {
-            // Se o secret não estiver configurado, pula a validação (dev mode)
             System.out.println("[Webhook] AVISO: whatsapp.app.secret não configurado. Validação de assinatura desabilitada.");
             return true;
         }

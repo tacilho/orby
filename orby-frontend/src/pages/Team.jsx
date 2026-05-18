@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Trash2, Users as UsersIcon, Briefcase, Search, ChevronDown, Check, Shield, Edit2, Key, UserCog, User, ChevronRight } from 'lucide-react';
+import { Plus, X, Trash2, Users as UsersIcon, Briefcase, Search, ChevronDown, Check, Shield, Edit2, Key, UserCog, User, ChevronRight, Save } from 'lucide-react';
 import Select from '../components/Select';
 import { useAppContext } from '../context/AppContext';
 
@@ -107,6 +107,7 @@ function Team() {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', sectorId: '' });
   
   const [deleteConfirm, setDeleteConfirm] = useState({ type: null, id: null, name: null });
+  const [selectedOpForPerms, setSelectedOpForPerms] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState([]);
@@ -214,6 +215,39 @@ function Team() {
     } catch (err) { showToast("Erro ao remover", "danger"); }
   };
 
+  const togglePermission = (field) => {
+    setSelectedOpForPerms(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        [field]: prev[field] === undefined ? false : !prev[field]
+      };
+    });
+  };
+
+  const savePermissions = async () => {
+    if (!selectedOpForPerms) return;
+    try {
+      const res = await fetch(`${API_BASE}/management/operators/${selectedOpForPerms.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...selectedOpForPerms
+        })
+      });
+      if (res.ok) {
+        showToast('Permissões salvas com sucesso!');
+        const updated = await res.json();
+        setOperators(prev => prev.map(o => o.id === updated.id ? updated : o));
+        setAdmins(prev => prev.map(o => o.id === updated.id ? updated : o));
+        setSelectedOpForPerms(updated);
+      }
+    } catch (err) {
+      showToast('Erro ao salvar permissões', 'danger');
+    }
+  };
+
   const filteredOperators = useMemo(() => {
     return operators.filter(op => {
       const opSector = sectors.find(s => s.id === op.sectorId)?.name || '';
@@ -236,6 +270,7 @@ function Team() {
     { id: 'admins', label: 'Administradores', desc: 'Acesso total e configurações', icon: <UserCog size={18}/> },
     { id: 'operators', label: 'Operadores', desc: 'Atendentes e suporte', icon: <User size={18}/> },
     { id: 'sectors', label: 'Setores', desc: 'Departamentos e filas', icon: <Briefcase size={18}/> },
+    { id: 'permissions', label: 'Permissões', desc: 'Gerenciar regras de usuários', icon: <Shield size={18}/> },
   ];
 
   return (
@@ -254,7 +289,18 @@ function Team() {
           {tabs.map(t => (
             <div 
               key={t.id} 
-              onClick={() => { setActiveTab(t.id); setSearchQuery(''); setFilterStatus([]); setFilterSector([]); }}
+              onClick={() => { 
+                setActiveTab(t.id); 
+                setSearchQuery(''); 
+                setFilterStatus([]); 
+                setFilterSector([]); 
+                if (t.id === 'permissions') {
+                  const all = [...admins, ...operators];
+                  if (all.length > 0) {
+                    setSelectedOpForPerms(all[0]);
+                  }
+                }
+              }}
               style={{
                 padding:'1rem 1.5rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'1rem',
                 borderLeft:`3px solid ${activeTab === t.id ? 'var(--accent-color)' : 'transparent'}`,
@@ -428,6 +474,170 @@ function Team() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── Permissions Tab ─── */}
+          {activeTab === 'permissions' && (
+            <div className="fade-in">
+              <SectionHeader title="Permissões de Usuários" desc="Defina limites e responsabilidades específicas para cada integrante da equipe." icon={<Shield size={18}/>}/>
+
+              <div style={{ display: 'flex', gap: '2rem', marginTop: '2rem', minHeight: '480px' }}>
+                {/* Users List Sidebar */}
+                <div style={{ width: '280px', borderRight: '1px solid var(--border-color)', paddingRight: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Integrantes ({[...admins, ...operators].length})</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto', maxHeight: '420px' }}>
+                    {[...admins, ...operators].map(user => {
+                      const isSelected = selectedOpForPerms?.id === user.id;
+                      return (
+                        <div
+                          key={user.id}
+                          onClick={() => setSelectedOpForPerms(user)}
+                          style={{
+                            padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-sm, 6px)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            border: `1px solid ${isSelected ? 'var(--accent-color)' : 'var(--border-color)'}`,
+                            background: isSelected ? 'var(--bg-active)' : 'var(--bg-panel)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '50%',
+                            background: isSelected ? 'var(--accent-color)' : 'var(--bg-active)',
+                            color: isSelected ? 'var(--accent-text)' : 'var(--text-secondary)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.65rem', fontWeight: 700
+                          }}>
+                            {getInitials(user.name)}
+                          </div>
+                          <div style={{ overflow: 'hidden', flex: 1 }}>
+                            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{user.role === 'ADMIN' ? 'Administrador' : 'Operador'}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Permissions Panel */}
+                <div style={{ flex: 1, paddingLeft: '0.5rem' }}>
+                  {selectedOpForPerms ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      {/* Selected user profile banner */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                        <div style={{
+                          width: '42px', height: '42px', borderRadius: '50%',
+                          background: 'var(--accent-color)', color: 'var(--accent-text)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.85rem', fontWeight: 700
+                        }}>
+                          {getInitials(selectedOpForPerms.name)}
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{selectedOpForPerms.name}</h4>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedOpForPerms.email} • <strong>{selectedOpForPerms.role === 'ADMIN' ? 'Administrador' : 'Operador'}</strong></span>
+                        </div>
+                      </div>
+
+                      {selectedOpForPerms.role === 'ADMIN' ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-app)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                          ⚡ <strong>Administradores possuem permissões globais irrestritas por padrão.</strong>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Option 1: viewOthersTickets */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Ver chamados de outros operadores</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Permite listar e visualizar o histórico de chats atribuídos a outros atendentes.</div>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+                                checked={selectedOpForPerms.viewOthersTickets !== false}
+                                onChange={() => togglePermission('viewOthersTickets')}
+                              />
+                            </div>
+
+                            {/* Option 2: respondOthersTickets */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Responder chamados de outros operadores</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Permite interagir e enviar mensagens em chats pertencentes a outros atendentes.</div>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+                                checked={selectedOpForPerms.respondOthersTickets !== false}
+                                onChange={() => togglePermission('respondOthersTickets')}
+                              />
+                            </div>
+
+                            {/* Option 3: manageClientData */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Cadastrar notas, equipamentos e editar clientes</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Permite cadastrar notas internas, gerenciar a lista de equipamentos e alterar dados cadastrais do cliente.</div>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+                                checked={selectedOpForPerms.manageClientData !== false}
+                                onChange={() => togglePermission('manageClientData')}
+                              />
+                            </div>
+
+                            {/* Option 4: viewReports */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Visualizar relatórios e dashboard corporativos</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exibe o menu lateral e libera o acesso aos gráficos de métricas e relatórios de satisfação (CSAT).</div>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+                                checked={selectedOpForPerms.viewReports !== false}
+                                onChange={() => togglePermission('viewReports')}
+                              />
+                            </div>
+
+                            {/* Option 5: manageSectorsAndReasons */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Gerenciar setores, motivos e transferências</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Permite transferir chamados entre setores/operadores e acessar as definições de motivos corporativos.</div>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+                                checked={selectedOpForPerms.manageSectorsAndReasons !== false}
+                                onChange={() => togglePermission('manageSectorsAndReasons')}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                            <button className="btn primary" onClick={savePermissions} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <Save size={16}/> Salvar Configurações
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <Shield size={36} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                      <p>Selecione um integrante na lista ao lado para gerenciar as permissões.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

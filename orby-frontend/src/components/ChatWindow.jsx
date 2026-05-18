@@ -3,6 +3,7 @@ import { Send, ArrowRightLeft, X, User, CheckCircle2, NotebookPen, Mail, Phone, 
 import Select from './Select';
 import DateTimePicker from './DateTimePicker';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -60,8 +61,13 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
     addMediaMessageToTicket
   } = useAppContext();
 
+  const { user } = useAuth();
   const activeTicket = tickets.find(t => t.id.toString() === ticketId.toString()) || null;
-  
+  const isOthersTicket = activeTicket?.operator && activeTicket?.operator !== 'Você' && activeTicket?.operator !== user?.name;
+  const canRespond = user?.role !== 'OPERATOR' || user?.respondOthersTickets !== false || !isOthersTicket;
+  const canManageClient = user?.role !== 'OPERATOR' || user?.manageClientData !== false;
+  const canManageSectorsAndReasons = user?.role !== 'OPERATOR' || user?.manageSectorsAndReasons !== false;
+
   const [input, setInput] = useState('');
   const [showClientInfo, setShowClientInfo] = useState(false);
   const [showCannedModal, setShowCannedModal] = useState(false);
@@ -234,10 +240,14 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
               <>
                 <button className={`btn ${showEquipmentsModal ? 'primary' : ''}`} title="Equipamentos do Cliente" onClick={() => setShowEquipmentsModal(true)}><Monitor size={16} /></button>
                 <button className={`btn ${showNotesModal ? 'primary' : ''}`} title="Notas Internas" onClick={() => setShowNotesModal(true)}><NotebookPen size={16} /></button>
-                <button className={`btn ${showCannedModal ? 'primary' : ''}`} title="Respostas Rápidas" onClick={() => setShowCannedModal(true)}><Zap size={16} /></button>
-                <button className={`btn ${showDevModal ? 'primary' : ''}`} title="Enviar para Desenvolvimento" onClick={() => setShowDevModal(true)} style={{ color: 'var(--danger)' }}><AlertCircle size={16} /></button>
-                <button className="btn" title="Transferir Atendimento" onClick={() => setShowTransferModal(true)}><ArrowRightLeft size={16} /> Transferir</button>
-                <button className="btn primary" title="Encerrar Atendimento" onClick={() => setShowCloseModal(true)}><CheckCircle2 size={16} /> Encerrar</button>
+                {canRespond && (
+                  <>
+                    <button className={`btn ${showCannedModal ? 'primary' : ''}`} title="Respostas Rápidas" onClick={() => setShowCannedModal(true)}><Zap size={16} /></button>
+                    {canManageSectorsAndReasons && <button className={`btn ${showDevModal ? 'primary' : ''}`} title="Enviar para Desenvolvimento" onClick={() => setShowDevModal(true)} style={{ color: 'var(--danger)' }}><AlertCircle size={16} /></button>}
+                    {canManageSectorsAndReasons && <button className="btn" title="Transferir Atendimento" onClick={() => setShowTransferModal(true)}><ArrowRightLeft size={16} /> Transferir</button>}
+                    <button className="btn primary" title="Encerrar Atendimento" onClick={() => setShowCloseModal(true)}><CheckCircle2 size={16} /> Encerrar</button>
+                  </>
+                )}
               </>
             )}
             <button className={`btn ${showClientInfo ? 'primary' : ''}`} title="Detalhes do Cliente" onClick={() => setShowClientInfo(!showClientInfo)}><Info size={16} /></button>
@@ -267,10 +277,10 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
             </div>
           ) : (
             <form style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }} onSubmit={handleSend}>
-              <button type="button" className="btn" title="Anexar Arquivo" onClick={() => fileInputRef.current?.click()} style={{ padding: '0.5rem', color: 'var(--text-secondary)' }} disabled={isTransferred}><Paperclip size={16} /></button>
-              <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} disabled={isTransferred} />
-              <input type="text" className="chat-input" placeholder={isTransferred ? "Atendimento encerrado." : "Digite sua mensagem..."} value={input} onChange={(e) => setInput(e.target.value)} disabled={isTransferred} style={{ flex: 1 }} />
-              <button type="submit" className="btn primary" disabled={isTransferred || !input.trim()} style={{ padding: '0.5rem 1rem' }}><Send size={16} /></button>
+              <button type="button" className="btn" title="Anexar Arquivo" onClick={() => fileInputRef.current?.click()} style={{ padding: '0.5rem', color: 'var(--text-secondary)' }} disabled={isTransferred || !canRespond}><Paperclip size={16} /></button>
+              <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} disabled={isTransferred || !canRespond} />
+              <input type="text" className="chat-input" placeholder={isTransferred ? "Atendimento encerrado." : !canRespond ? "Sem permissão para responder a este chamado." : "Digite sua mensagem..."} value={input} onChange={(e) => setInput(e.target.value)} disabled={isTransferred || !canRespond} style={{ flex: 1 }} />
+              <button type="submit" className="btn primary" disabled={isTransferred || !input.trim() || !canRespond} style={{ padding: '0.5rem 1rem' }}><Send size={16} /></button>
             </form>
           )}
         </div>
@@ -281,9 +291,11 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
             <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, margin: 0 }}>Informações do Cliente</h3>
             {!isEditingClient ? (
-              <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => { setIsEditingClient(true); setEditClientData({ name: activeTicket.client?.name || activeTicket.clientName || '', document: activeTicket.client?.document || '', phoneNumber: activeTicket.client?.phoneNumber || '', email: activeTicket.client?.email || '' }); }}>
-                <Edit2 size={12} /> Editar
-              </button>
+              canManageClient && (
+                <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => { setIsEditingClient(true); setEditClientData({ name: activeTicket.client?.name || activeTicket.clientName || '', document: activeTicket.client?.document || '', phoneNumber: activeTicket.client?.phoneNumber || '', email: activeTicket.client?.email || '' }); }}>
+                  <Edit2 size={12} /> Editar
+                </button>
+              )
             ) : (
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }} onClick={() => setIsEditingClient(false)}><X size={12} /></button>
@@ -346,23 +358,195 @@ function ChatWindow({ ticketId, isModal = false, onClose }) {
         </form>
       </div></div>}
 
-      {showCannedModal && <div className="modal-overlay"><div className="modal-content" style={{ maxWidth: '520px' }}><div className="modal-header"><h2>Respostas Rápidas</h2><button className="close-btn" onClick={() => setShowCannedModal(false)}><X size={18} /></button></div>
-        <div style={{ padding: '1.25rem' }}>{cannedResponses.map(c => <div key={c.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem', cursor: 'pointer' }} onClick={() => { setInput(c.text); setShowCannedModal(false); }}><strong>{c.title}</strong><div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{c.text}</div></div>)}</div>
-      </div></div>}
+      {showCannedModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h2>Respostas Rápidas</h2>
+              <button className="close-btn" onClick={() => { setShowCannedModal(false); setEditingCanned(null); }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '1.25rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {canManageClient && (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const title = e.target.title.value;
+                  const text = e.target.text.value;
+                  if (!title || !text) return;
+                  if (editingCanned) {
+                    await editCannedResponse(editingCanned.id, title, text);
+                    setEditingCanned(null);
+                  } else {
+                    await addCannedResponse(title, text);
+                  }
+                  e.target.reset();
+                }} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-app)' }}>
+                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>{editingCanned ? 'Editar Resposta' : 'Nova Resposta Rápida'}</h3>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <input type="text" name="title" className="form-control" placeholder="Título/Atalho" defaultValue={editingCanned ? editingCanned.title : ''} key={editingCanned ? `title-edit-${editingCanned.id}` : 'title-new'} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <textarea name="text" className="form-control" rows={3} placeholder="Texto de resposta..." defaultValue={editingCanned ? editingCanned.text : ''} key={editingCanned ? `text-edit-${editingCanned.id}` : 'text-new'} required></textarea>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="submit" className="btn primary" style={{ flex: 1 }}>{editingCanned ? 'Salvar Alterações' : 'Adicionar'}</button>
+                    {editingCanned && <button type="button" className="btn" style={{ flex: 1 }} onClick={() => setEditingCanned(null)}>Cancelar</button>}
+                  </div>
+                </form>
+              )}
 
-      {showNotesModal && activeTicket && <div className="modal-overlay"><div className="modal-content" style={{ maxWidth: '520px' }}><div className="modal-header"><h2>Notas Internas</h2><button className="close-btn" onClick={() => setShowNotesModal(false)}><X size={18} /></button></div>
-        <div style={{ padding: '1.25rem' }}>
-          <form onSubmit={(e) => { e.preventDefault(); const text = e.target.note.value; if (text) { addNoteToTicket(activeTicket.id, text); e.target.reset(); } }} style={{ marginBottom: '1.5rem' }}>
-            <textarea name="note" className="form-control" rows={3} placeholder="Adicionar nota..."></textarea>
-            <button type="submit" className="btn primary" style={{ marginTop: '0.5rem', width: '100%' }}>Adicionar Nota</button>
-          </form>
-          {activeTicket.notes?.map(n => <div key={n.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', marginBottom: '0.5rem', background: 'var(--bg-app)' }}><strong>{n.operator}</strong><div style={{ fontSize: '0.8rem' }}>{n.text}</div></div>)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {cannedResponses.map(c => (
+                  <div key={c.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => { setInput(c.text); setShowCannedModal(false); setEditingCanned(null); }}>
+                      <strong style={{ fontSize: '0.875rem' }}>{c.title}</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{c.text}</div>
+                    </div>
+                    {canManageClient && (
+                      <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.5rem' }}>
+                        <button className="btn" style={{ padding: '0.35rem' }} onClick={() => setEditingCanned(c)} title="Editar"><Edit2 size={13} /></button>
+                        <button className="btn danger" style={{ padding: '0.35rem' }} onClick={() => deleteCannedResponse(c.id)} title="Excluir"><Trash2 size={13} /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div></div>}
+      )}
 
-      {showEquipmentsModal && activeTicket && <div className="modal-overlay"><div className="modal-content" style={{ maxWidth: '540px' }}><div className="modal-header"><h2>Equipamentos</h2><button className="close-btn" onClick={() => setShowEquipmentsModal(false)}><X size={18} /></button></div>
-        <div style={{ padding: '1.25rem' }}>{activeTicket.equipments?.map(e => <div key={e.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', marginBottom: '0.5rem' }}><strong>{e.name} ({e.type})</strong><div>{e.description}</div></div>)}</div>
-      </div></div>}
+      {showNotesModal && activeTicket && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h2>Notas Internas</h2>
+              <button className="close-btn" onClick={() => { setShowNotesModal(false); setEditingNote(null); }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '1.25rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {canManageClient ? (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const text = e.target.note.value;
+                  if (!text) return;
+                  if (editingNote) {
+                    await editNoteInTicket(activeTicket.id, editingNote.id, text);
+                    setEditingNote(null);
+                  } else {
+                    await addNoteToTicket(activeTicket.id, text);
+                  }
+                  e.target.reset();
+                }} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-app)' }}>
+                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>{editingNote ? 'Editar Nota Interna' : 'Nova Nota Interna'}</h3>
+                  <textarea name="note" className="form-control" rows={3} placeholder="Adicionar nota..." defaultValue={editingNote ? editingNote.text : ''} key={editingNote ? `note-edit-${editingNote.id}` : 'note-new'} required></textarea>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button type="submit" className="btn primary" style={{ flex: 1 }}>{editingNote ? 'Salvar Alterações' : 'Adicionar Nota'}</button>
+                    {editingNote && <button type="button" className="btn" style={{ flex: 1 }} onClick={() => setEditingNote(null)}>Cancelar</button>}
+                  </div>
+                </form>
+              ) : (
+                <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                  Você não possui permissão para gerenciar dados do cliente e adicionar notas.
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {activeTicket.notes?.map(n => (
+                  <div key={n.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <strong style={{ fontSize: '0.85rem' }}>{n.operator}</strong>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(n.createdAt)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{n.text}</div>
+                    </div>
+                    {canManageClient && (
+                      <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.5rem' }}>
+                        <button className="btn" style={{ padding: '0.35rem' }} onClick={() => setEditingNote(n)} title="Editar"><Edit2 size={13} /></button>
+                        <button className="btn danger" style={{ padding: '0.35rem' }} onClick={() => deleteNoteFromTicket(activeTicket.id, n.id)} title="Excluir"><Trash2 size={13} /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEquipmentsModal && activeTicket && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '540px' }}>
+            <div className="modal-header">
+              <h2>Equipamentos do Cliente</h2>
+              <button className="close-btn" onClick={() => { setShowEquipmentsModal(false); setEditingEquipment(null); }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '1.25rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {canManageClient ? (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const name = e.target.eqName.value;
+                  const type = e.target.eqType.value;
+                  const description = e.target.eqDesc.value;
+                  if (!name || !type) return;
+                  if (editingEquipment) {
+                    await editEquipmentInTicket(activeTicket.id, editingEquipment.id, name, type, description);
+                    setEditingEquipment(null);
+                  } else {
+                    await addEquipmentToTicket(activeTicket.id, name, type, description);
+                  }
+                  e.target.reset();
+                }} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-app)' }}>
+                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>{editingEquipment ? 'Editar Equipamento' : 'Novo Equipamento'}</h3>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Nome</label>
+                    <input type="text" name="eqName" className="form-control" placeholder="Ex: Servidor de Arquivos Dell" defaultValue={editingEquipment ? editingEquipment.name : ''} key={editingEquipment ? `eqName-edit-${editingEquipment.id}` : 'eqName-new'} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Tipo</label>
+                    <select name="eqType" className="form-control" defaultValue={editingEquipment ? editingEquipment.type : 'servidor desktop'} key={editingEquipment ? `eqType-edit-${editingEquipment.id}` : 'eqType-new'} required>
+                      <option value="servidor desktop">Servidor Desktop</option>
+                      <option value="roteador">Roteador</option>
+                      <option value="switch">Switch</option>
+                      <option value="servidor rack">Servidor Rack</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Descrição</label>
+                    <textarea name="eqDesc" className="form-control" rows={2} placeholder="Ex: IP 192.168.1.10, Linux Ubuntu 22.04" defaultValue={editingEquipment ? editingEquipment.description : ''} key={editingEquipment ? `eqDesc-edit-${editingEquipment.id}` : 'eqDesc-new'}></textarea>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button type="submit" className="btn primary" style={{ flex: 1 }}>{editingEquipment ? 'Salvar Alterações' : 'Adicionar'}</button>
+                    {editingEquipment && <button type="button" className="btn" style={{ flex: 1 }} onClick={() => setEditingEquipment(null)}>Cancelar</button>}
+                  </div>
+                </form>
+              ) : (
+                <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                  Você não possui permissão para gerenciar dados do cliente e equipamentos.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {activeTicket.equipments?.map(e => (
+                  <div key={e.id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: '0.875rem' }}>{e.name}</strong>
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', background: 'var(--bg-active)', color: 'var(--text-secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600 }}>{e.type}</span>
+                      <div style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>{e.description || 'Sem descrição.'}</div>
+                    </div>
+                    {canManageClient && (
+                      <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.5rem' }}>
+                        <button className="btn" style={{ padding: '0.35rem' }} onClick={() => setEditingEquipment(e)} title="Editar"><Edit2 size={13} /></button>
+                        <button className="btn danger" style={{ padding: '0.35rem' }} onClick={() => deleteEquipmentFromTicket(activeTicket.id, e.id)} title="Excluir"><Trash2 size={13} /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDevModal && <div className="modal-overlay"><div className="modal-content" style={{ maxWidth: '800px' }}><div className="modal-header"><h2>Dev Escalation</h2><button className="close-btn" onClick={() => setShowDevModal(false)}><X size={18} /></button></div>
         <div style={{ padding: '1.5rem' }}>

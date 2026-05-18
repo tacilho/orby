@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Globe, Server, Check, Save, Mail, MessageCircle, Eye, Sparkles, Shield, Layers, Plus, Trash2, X, ChevronRight, Monitor, Settings as SettingsIcon, Smartphone, Wifi, BatteryCharging, Power, QrCode } from 'lucide-react';
+import { Palette, Globe, Server, Check, Save, Mail, MessageCircle, Eye, Sparkles, Shield, Layers, Plus, Trash2, Edit2, X, ChevronRight, Monitor, Settings as SettingsIcon, Smartphone, Wifi, BatteryCharging, Power, QrCode } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import ColorPicker from '../components/ColorPicker';
 
@@ -16,7 +16,11 @@ function isLightColor(hex) {
 function Settings() {
   const { 
     tenantConfig, updateTenantConfig, 
-    activeThemeId, builtinThemes, customThemes, applyTheme, saveCustomTheme, deleteCustomTheme 
+    activeThemeId, builtinThemes, customThemes, applyTheme, saveCustomTheme, deleteCustomTheme,
+    ticketReasons, addTicketReason, editTicketReason, deleteTicketReason,
+    ticketSubReasons, addTicketSubReason, editTicketSubReason, deleteTicketSubReason,
+    cannedResponses, addCannedResponse, editCannedResponse, deleteCannedResponse,
+    standByReasons, addStandByReason, editStandByReason, deleteStandByReason
   } = useAppContext();
   
   const [config, setConfig] = useState(tenantConfig);
@@ -41,6 +45,27 @@ function Settings() {
     '--text-secondary': '#374151',
     '--border-color': '#D4D6DC'
   });
+
+  // Motivos, Submotivos, Respostas Rapidas e Stand By States
+  const [editingReasonId, setEditingReasonId] = useState(null);
+  const [newReasonTitle, setNewReasonTitle] = useState('');
+  
+  const [editingSubReasonId, setEditingSubReasonId] = useState(null);
+  const [newSubReasonTitle, setNewSubReasonTitle] = useState('');
+  const [selectedParentReasonId, setSelectedParentReasonId] = useState('');
+
+  const [editingCannedId, setEditingCannedId] = useState(null);
+  const [newCannedTitle, setNewCannedTitle] = useState('');
+  const [newCannedText, setNewCannedText] = useState('');
+
+  const [editingStandById, setEditingStandById] = useState(null);
+  const [newStandByTitle, setNewStandByTitle] = useState('');
+
+  // Modal open states
+  const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+  const [isSubReasonModalOpen, setIsSubReasonModalOpen] = useState(false);
+  const [isCannedModalOpen, setIsCannedModalOpen] = useState(false);
+  const [isStandByModalOpen, setIsStandByModalOpen] = useState(false);
 
   // Gerar QR Code REAL via Bridge Node.js
   const handleGenerateQr = async () => {
@@ -178,6 +203,7 @@ function Settings() {
     { id: 'domain', label: 'Domínio & Acesso', desc: 'URLs personalizadas e SSL', icon: <Globe size={18}/> },
     { id: 'email', label: 'E-mail (SMTP)', desc: 'Servidores de envio próprios', icon: <Mail size={18}/> },
     { id: 'widget', label: 'Widget de Chat', desc: 'Aparência do balão externo', icon: <MessageCircle size={18}/> },
+    { id: 'categories', label: 'Motivos & Respostas', desc: 'Gerenciar motivos e respostas rápidas', icon: <Layers size={18}/> },
   ];
 
   return (
@@ -667,7 +693,7 @@ function Settings() {
                            display:'flex', alignItems:'center', justifyContent:'center', color:isLightColor(config.widgetColor || config.primaryColor)?'#000':'#fff',
                            boxShadow:`0 4px 16px ${(config.widgetColor || config.primaryColor)}50`
                          }}>
-                            <MessageCircle size={24}/>
+                          <MessageCircle size={24}/>
                          </div>
                       </div>
                    </div>
@@ -675,8 +701,290 @@ function Settings() {
               </div>
             </div>
           )}
+
+          {/* ── Motivos & Respostas Tab ─── */}
+          {activeTab==='categories' && (
+            <div className="fade-in">
+              <SectionHeader title="Categorias & Respostas" desc="Gerencie os motivos de encerramento, submotivos, respostas rápidas e motivos de pausa do sistema." icon={<Layers size={18}/>}/>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
+                
+                {/* 1. Motivos de Encerramento */}
+                <div className="panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', minHeight: '340px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Motivos de Encerramento</h3>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Classificação principal ao fechar chamados.</p>
+                    </div>
+                    <button className="btn primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.375rem' }} onClick={() => { setEditingReasonId(null); setNewReasonTitle(''); setIsReasonModalOpen(true); }}>
+                      <Plus size={14}/> Novo
+                    </button>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                    {ticketReasons && ticketReasons.length > 0 ? (
+                      ticketReasons.map(r => (
+                        <div key={r.id} style={{ padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{r.title}</span>
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            <button className="btn" style={{ padding: '0.375rem' }} onClick={() => { setEditingReasonId(r.id); setNewReasonTitle(r.title); setIsReasonModalOpen(true); }} title="Editar"><Edit2 size={12} /></button>
+                            <button className="btn danger" style={{ padding: '0.375rem' }} onClick={() => deleteTicketReason(r.id)} title="Excluir"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>Nenhum motivo cadastrado.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Submotivos de Encerramento */}
+                <div className="panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', minHeight: '340px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Submotivos de Encerramento</h3>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Classificações secundárias detalhadas.</p>
+                    </div>
+                    <button className="btn primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.375rem' }} onClick={() => { setEditingSubReasonId(null); setNewSubReasonTitle(''); setSelectedParentReasonId(''); setIsSubReasonModalOpen(true); }}>
+                      <Plus size={14}/> Novo
+                    </button>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                    {ticketSubReasons && ticketSubReasons.length > 0 ? (
+                      ticketSubReasons.map(sr => {
+                        const parent = ticketReasons && ticketReasons.find(r => r.id === sr.parentId);
+                        return (
+                          <div key={sr.id} style={{ padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
+                            <div>
+                              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{sr.title}</span>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>Pai: {parent ? parent.title : 'N/A'}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                              <button className="btn" style={{ padding: '0.375rem' }} onClick={() => { setEditingSubReasonId(sr.id); setNewSubReasonTitle(sr.title); setSelectedParentReasonId(sr.parentId); setIsSubReasonModalOpen(true); }} title="Editar"><Edit2 size={12} /></button>
+                              <button className="btn danger" style={{ padding: '0.375rem' }} onClick={() => deleteTicketSubReason(sr.id)} title="Excluir"><Trash2 size={12} /></button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>Nenhum submotivo cadastrado.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Respostas Rápidas */}
+                <div className="panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', minHeight: '340px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Respostas Rápidas</h3>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Atalhos para mensagens frequentes.</p>
+                    </div>
+                    <button className="btn primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.375rem' }} onClick={() => { setEditingCannedId(null); setNewCannedTitle(''); setNewCannedText(''); setIsCannedModalOpen(true); }}>
+                      <Plus size={14}/> Nova
+                    </button>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                    {cannedResponses && cannedResponses.length > 0 ? (
+                      cannedResponses.map(c => (
+                        <div key={c.id} style={{ padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
+                          <div style={{ flex: 1, marginRight: '1rem' }}>
+                            <strong style={{ fontSize: '0.875rem' }}>/{c.title}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }}>{c.text}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            <button className="btn" style={{ padding: '0.375rem' }} onClick={() => { setEditingCannedId(c.id); setNewCannedTitle(c.title); setNewCannedText(c.text); setIsCannedModalOpen(true); }} title="Editar"><Edit2 size={12} /></button>
+                            <button className="btn danger" style={{ padding: '0.375rem' }} onClick={() => deleteCannedResponse(c.id)} title="Excluir"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>Nenhuma resposta rápida cadastrada.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Motivos de Stand By */}
+                <div className="panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', minHeight: '340px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Motivos de Stand By (Pausa)</h3>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Classificações de pausa de chamados.</p>
+                    </div>
+                    <button className="btn primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.375rem' }} onClick={() => { setEditingStandById(null); setNewStandByTitle(''); setIsStandByModalOpen(true); }}>
+                      <Plus size={14}/> Novo
+                    </button>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                    {standByReasons && standByReasons.length > 0 ? (
+                      standByReasons.map(sr => (
+                        <div key={sr.id} style={{ padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{sr.title}</span>
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            <button className="btn" style={{ padding: '0.375rem' }} onClick={() => { setEditingStandById(sr.id); setNewStandByTitle(sr.title); setIsStandByModalOpen(true); }} title="Editar"><Edit2 size={12} /></button>
+                            <button className="btn danger" style={{ padding: '0.375rem' }} onClick={() => deleteStandByReason(sr.id)} title="Excluir"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>Nenhum motivo de pausa cadastrado.</div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
         </div>
       </div>
+      {/* ── Motivo Modal ─── */}
+      {isReasonModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontWeight: 700 }}>{editingReasonId ? 'Editar Motivo' : 'Adicionar Motivo'}</h3>
+              <button className="close-btn" onClick={() => setIsReasonModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newReasonTitle.trim()) return;
+              if (editingReasonId) {
+                await editTicketReason(editingReasonId, newReasonTitle);
+                setEditingReasonId(null);
+              } else {
+                await addTicketReason(newReasonTitle);
+              }
+              setNewReasonTitle('');
+              setIsReasonModalOpen(false);
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label className="form-label">Título do Motivo</label>
+                <input type="text" className="form-control" placeholder="Ex: Problema de Conectividade" value={newReasonTitle} onChange={e => setNewReasonTitle(e.target.value)} required autoFocus />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn outline" onClick={() => setIsReasonModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn primary">{editingReasonId ? 'Salvar Alterações' : 'Adicionar Motivo'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Submotivo Modal ─── */}
+      {isSubReasonModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontWeight: 700 }}>{editingSubReasonId ? 'Editar Submotivo' : 'Adicionar Submotivo'}</h3>
+              <button className="close-btn" onClick={() => setIsSubReasonModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newSubReasonTitle.trim() || !selectedParentReasonId) return;
+              if (editingSubReasonId) {
+                await editTicketSubReason(editingSubReasonId, newSubReasonTitle);
+                setEditingSubReasonId(null);
+              } else {
+                await addTicketSubReason(selectedParentReasonId, newSubReasonTitle);
+              }
+              setNewSubReasonTitle('');
+              setSelectedParentReasonId('');
+              setIsSubReasonModalOpen(false);
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label className="form-label">Motivo Principal (Pai)</label>
+                <select className="form-control" value={selectedParentReasonId} onChange={e => setSelectedParentReasonId(e.target.value)} required disabled={!!editingSubReasonId}>
+                  <option value="">-- Selecione o Motivo --</option>
+                  {ticketReasons && ticketReasons.map(r => (
+                    <option key={r.id} value={r.id}>{r.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Título do Submotivo</label>
+                <input type="text" className="form-control" placeholder="Ex: Lentidão no Wifi" value={newSubReasonTitle} onChange={e => setNewSubReasonTitle(e.target.value)} required autoFocus />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn outline" onClick={() => setIsSubReasonModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn primary">{editingSubReasonId ? 'Salvar Alterações' : 'Adicionar Submotivo'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resposta Rápida Modal ─── */}
+      {isCannedModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '540px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontWeight: 700 }}>{editingCannedId ? 'Editar Resposta Rápida' : 'Adicionar Resposta Rápida'}</h3>
+              <button className="close-btn" onClick={() => setIsCannedModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newCannedTitle.trim() || !newCannedText.trim()) return;
+              if (editingCannedId) {
+                await editCannedResponse(editingCannedId, newCannedTitle, newCannedText);
+                setEditingCannedId(null);
+              } else {
+                await addCannedResponse(newCannedTitle, newCannedText);
+              }
+              setNewCannedTitle('');
+              setNewCannedText('');
+              setIsCannedModalOpen(false);
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label className="form-label">Atalho (sem a barra "/")</label>
+                <input type="text" className="form-control" placeholder="Ex: saudacao" value={newCannedTitle} onChange={e => setNewCannedTitle(e.target.value)} required autoFocus />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Mensagem de Resposta</label>
+                <textarea className="form-control" rows={4} placeholder="Ex: Olá! Tudo bem? Como posso te ajudar hoje?" value={newCannedText} onChange={e => setNewCannedText(e.target.value)} required />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn outline" onClick={() => setIsCannedModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn primary">{editingCannedId ? 'Salvar Alterações' : 'Adicionar Resposta'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Motivo Stand By Modal ─── */}
+      {isStandByModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontWeight: 700 }}>{editingStandById ? 'Editar Motivo de Stand By' : 'Adicionar Motivo de Stand By'}</h3>
+              <button className="close-btn" onClick={() => setIsStandByModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newStandByTitle.trim()) return;
+              if (editingStandById) {
+                await editStandByReason(editingStandById, newStandByTitle);
+                setEditingStandById(null);
+              } else {
+                await addStandByReason(newStandByTitle);
+              }
+              setNewStandByTitle('');
+              setIsStandByModalOpen(false);
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label className="form-label">Título do Motivo de Pausa</label>
+                <input type="text" className="form-control" placeholder="Ex: Aguardando resposta do cliente" value={newStandByTitle} onChange={e => setNewStandByTitle(e.target.value)} required autoFocus />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn outline" onClick={() => setIsStandByModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn primary">{editingStandById ? 'Salvar Alterações' : 'Adicionar Motivo'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Theme Creator Modal ─── */}
       {isCreatorOpen && (

@@ -38,10 +38,16 @@ public class ChatController {
     }
 
     @MessageMapping("/chat.sendMessage/{ticketId}")
-    public void sendMessage(@DestinationVariable Long ticketId, @Payload ChatMessage chatMessage) {
+    public void sendMessage(@DestinationVariable Long ticketId, 
+                            @Payload ChatMessage chatMessage,
+                            org.springframework.messaging.simp.SimpMessageHeaderAccessor headerAccessor) {
         System.out.println(">>> WEBSOCKET RECEBIDO: TicketID=" + ticketId + ", Content=" + chatMessage.getContent() + ", SenderID=" + chatMessage.getSenderId());
-        // Set tenant context for WebSocket (no HTTP interceptor here)
-        TenantContext.setCurrentTenant("default");
+        
+        String tenantId = "default";
+        if (headerAccessor.getSessionAttributes() != null && headerAccessor.getSessionAttributes().containsKey("tenantId")) {
+            tenantId = (String) headerAccessor.getSessionAttributes().get("tenantId");
+        }
+        TenantContext.setCurrentTenant(tenantId);
         try {
             SupportTicket ticket = supportTicketService.findById(ticketId)
                     .orElseThrow(() -> new RuntimeException("Ticket not found"));
@@ -82,43 +88,43 @@ public class ChatController {
                                                 @RequestParam(value = "caption", required = false) String caption,
                                                 @RequestParam("senderId") String senderId,
                                                 @RequestParam(value = "senderName", required = false) String senderName) {
-        TenantContext.setCurrentTenant("default");
-        try {
-            SupportTicket ticket = supportTicketService.findById(ticketId)
-                    .orElseThrow(() -> new RuntimeException("Ticket not found"));
-
-            // In a real app, you'd save the file to S3 or a local disk
-            // For now, we'll assume it's saved and we have a URL
-            // Mocking a local URL that our MediaController could serve or a public one
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            String mockPublicUrl = "https://your-public-domain.com/api/media/files/" + filename; // This would need to be real for WhatsApp to fetch it
-
-            ChatMessage chatMessage = new ChatMessage();
-            chatMessage.setTicket(ticket);
-            chatMessage.setType(type);
-            chatMessage.setContent(caption != null ? caption : "");
-            chatMessage.setMediaUrl(mockPublicUrl);
-            chatMessage.setMimeType(file.getContentType());
-            chatMessage.setFilename(file.getOriginalFilename());
-            chatMessage.setSenderId(senderId);
-            chatMessage.setSenderName(senderName);
-            chatMessage.setTimestamp(LocalDateTime.now());
-            chatMessage.setMessageId(UUID.randomUUID().toString());
-            chatMessage.setTenantId("default");
-
-            ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
-
-            if (ticket.getSource() == SupportTicketSource.WHATSAPP) {
-                // If using public URL, Meta will fetch it.
-                // In local dev, this will fail unless using ngrok or similar.
-                whatsappService.sendMediaMessage(ticket.getExternalConversationId(), type, mockPublicUrl, caption);
-            }
-
-            messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);
-            return ResponseEntity.ok(savedMessage);
-        } finally {
-            TenantContext.clear();
+        String activeTenant = TenantContext.getCurrentTenant();
+        if (activeTenant == null) {
+            activeTenant = "default";
         }
+        
+        SupportTicket ticket = supportTicketService.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        // In a real app, you'd save the file to S3 or a local disk
+        // For now, we'll assume it's saved and we have a URL
+        // Mocking a local URL that our MediaController could serve or a public one
+        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+        String mockPublicUrl = "https://your-public-domain.com/api/media/files/" + filename; // This would need to be real for WhatsApp to fetch it
+
+        ChatMessage chatMessage = new ChatMessage();
+        chatMessage.setTicket(ticket);
+        chatMessage.setType(type);
+        chatMessage.setContent(caption != null ? caption : "");
+        chatMessage.setMediaUrl(mockPublicUrl);
+        chatMessage.setMimeType(file.getContentType());
+        chatMessage.setFilename(file.getOriginalFilename());
+        chatMessage.setSenderId(senderId);
+        chatMessage.setSenderName(senderName);
+        chatMessage.setTimestamp(LocalDateTime.now());
+        chatMessage.setMessageId(UUID.randomUUID().toString());
+        chatMessage.setTenantId(activeTenant);
+
+        ChatMessage savedMessage = chatMessageService.saveMessage(chatMessage);
+
+        if (ticket.getSource() == SupportTicketSource.WHATSAPP) {
+            // If using public URL, Meta will fetch it.
+            // In local dev, this will fail unless using ngrok or similar.
+            whatsappService.sendMediaMessage(ticket.getExternalConversationId(), type, mockPublicUrl, caption);
+        }
+
+        messagingTemplate.convertAndSend("/topic/chat/" + ticketId, savedMessage);
+        return ResponseEntity.ok(savedMessage);
     }
 
     @GetMapping("/management/tickets/{ticketId}/messages")

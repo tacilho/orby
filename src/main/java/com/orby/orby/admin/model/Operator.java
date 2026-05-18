@@ -35,6 +35,21 @@ public class Operator extends TenantAwareEntity {
     @Column(name = "status", nullable = false)
     private OperatorStatus status = OperatorStatus.OFFLINE;
 
+    @Column(name = "view_others_tickets", nullable = true)
+    private Boolean viewOthersTickets = true;
+
+    @Column(name = "respond_others_tickets", nullable = true)
+    private Boolean respondOthersTickets = true;
+
+    @Column(name = "manage_client_data", nullable = true)
+    private Boolean manageClientData = true;
+
+    @Column(name = "manage_sectors_and_reasons", nullable = true)
+    private Boolean manageSectorsAndReasons = true;
+
+    @Column(name = "view_reports", nullable = true)
+    private Boolean viewReports = true;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -50,4 +65,19 @@ public class Operator extends TenantAwareEntity {
     public void setStatus(OperatorStatus status) { this.status = status; }
     public OperatorRole getRole() { return role; }
     public void setRole(OperatorRole role) { this.role = role; }
+
+    public Boolean getViewOthersTickets() { return viewOthersTickets == null ? true : viewOthersTickets; }
+    public void setViewOthersTickets(Boolean viewOthersTickets) { this.viewOthersTickets = viewOthersTickets; }
+
+    public Boolean getRespondOthersTickets() { return respondOthersTickets == null ? true : respondOthersTickets; }
+    public void setRespondOthersTickets(Boolean respondOthersTickets) { this.respondOthersTickets = respondOthersTickets; }
+
+    public Boolean getManageClientData() { return manageClientData == null ? true : manageClientData; }
+    public void setManageClientData(Boolean manageClientData) { this.manageClientData = manageClientData; }
+
+    public Boolean getManageSectorsAndReasons() { return manageSectorsAndReasons == null ? true : manageSectorsAndReasons; }
+    public void setManageSectorsAndReasons(Boolean manageSectorsAndReasons) { this.manageSectorsAndReasons = manageSectorsAndReasons; }
+
+    public Boolean getViewReports() { return viewReports == null ? true : viewReports; }
+    public void setViewReports(Boolean viewReports) { this.viewReports = viewReports; }
 }

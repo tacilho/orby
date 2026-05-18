@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArrowRight, Search, Users, ChevronDown, X, Check, Building2, Layers, Clock, Mail, Phone, History, Edit2, Trash2, Info, AlertCircle, MessageCircle, ChevronRight, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import DateTimePicker from '../components/DateTimePicker';
 import ChatWindow from '../components/ChatWindow';
 
@@ -303,6 +304,7 @@ const getWaitTime = (createdAt) => {
 /* ── Main Component ───────────────────────────────── */
 function Tickets() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { tickets, assumeTicket, resumeTicket, setActiveTicketId } = useAppContext();
 
   const ALL_OPERATORS = useMemo(() => {
@@ -438,6 +440,12 @@ const FinishedTicketHistoryModal = ({ ticket, onClose }) => {
 
   const baseFilteredTickets = useMemo(() => {
     return tickets.filter(t => {
+      // Check permission: ver chamados de outros operadores
+      if (user?.role === 'OPERATOR' && user?.viewOthersTickets === false) {
+        if (t.operator && t.operator !== 'Você' && t.operator !== user.name) {
+          return false;
+        }
+      }
       if (operatorFilter.length > 0 && !operatorFilter.includes(t.operator)) return false;
       if (sectorFilter.length > 0 && !sectorFilter.includes(t.sector)) return false;
       if (searchQuery) {
@@ -446,7 +454,7 @@ const FinishedTicketHistoryModal = ({ ticket, onClose }) => {
       }
       return true;
     });
-  }, [tickets, operatorFilter, sectorFilter, searchQuery]);
+  }, [tickets, operatorFilter, sectorFilter, searchQuery, user]);
 
   const ticketsWithDateAndAdvancedFilters = useMemo(() => {
      return baseFilteredTickets.filter(t => {

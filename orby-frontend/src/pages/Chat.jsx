@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, MessageCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import ChatWindow from '../components/ChatWindow';
 
 const formatDate = (dateStr) => {
@@ -15,8 +16,18 @@ const formatDate = (dateStr) => {
 };
 
 function Chat() {
+  const { user } = useAuth();
   const { tickets, activeTicketId, setActiveTicketId } = useAppContext();
-  const activeTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress' || t.status === 'stand_by');
+  const activeTickets = tickets.filter(t => {
+    const isActive = t.status === 'in_progress' || t.status === 'stand_by';
+    if (!isActive) return false;
+    
+    // Check permission: ver chamados de outros operadores
+    if (user?.role === 'OPERATOR' && user?.viewOthersTickets === false) {
+      return t.operator === 'Você' || t.operator === user.name;
+    }
+    return true;
+  });
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

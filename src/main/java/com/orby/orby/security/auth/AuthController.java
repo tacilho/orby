@@ -90,10 +90,10 @@ public class AuthController {
             // Set JWT as HttpOnly Secure cookie
             Cookie jwtCookie = new Cookie("jwt", token);
             jwtCookie.setHttpOnly(true);
-            jwtCookie.setSecure(false); // Set to true in production (HTTPS)
+            jwtCookie.setSecure(true); // Hardened for Session Security
             jwtCookie.setPath("/");
             jwtCookie.setMaxAge((int) jwtProperties.getExpirationSeconds());
-            jwtCookie.setAttribute("SameSite", "Lax");
+            jwtCookie.setAttribute("SameSite", "Strict"); // Strict SameSite
             response.addCookie(jwtCookie);
 
             // Clear rate limiter on success
@@ -107,6 +107,11 @@ public class AuthController {
                 profile.put("email", operator.getEmail());
                 profile.put("role", operator.getRole().name());
                 profile.put("sectorId", operator.getSectorId());
+                profile.put("viewOthersTickets", operator.getViewOthersTickets());
+                profile.put("respondOthersTickets", operator.getRespondOthersTickets());
+                profile.put("manageClientData", operator.getManageClientData());
+                profile.put("manageSectorsAndReasons", operator.getManageSectorsAndReasons());
+                profile.put("viewReports", operator.getViewReports());
             }
 
             return ResponseEntity.ok(profile);
@@ -140,6 +145,11 @@ public class AuthController {
         profile.put("email", operator.getEmail());
         profile.put("role", operator.getRole().name());
         profile.put("sectorId", operator.getSectorId());
+        profile.put("viewOthersTickets", operator.getViewOthersTickets());
+        profile.put("respondOthersTickets", operator.getRespondOthersTickets());
+        profile.put("manageClientData", operator.getManageClientData());
+        profile.put("manageSectorsAndReasons", operator.getManageSectorsAndReasons());
+        profile.put("viewReports", operator.getViewReports());
         return ResponseEntity.ok(profile);
     }
 
@@ -150,10 +160,10 @@ public class AuthController {
     public ResponseEntity<?> logout(HttpServletResponse response) {
         Cookie jwtCookie = new Cookie("jwt", "");
         jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(false); // Set to true in production (HTTPS)
+        jwtCookie.setSecure(true); // Hardened for Session Security
         jwtCookie.setPath("/");
         jwtCookie.setMaxAge(0); // Expire immediately
-        jwtCookie.setAttribute("SameSite", "Lax");
+        jwtCookie.setAttribute("SameSite", "Strict"); // Strict SameSite
         response.addCookie(jwtCookie);
         return ResponseEntity.ok(Map.of("message", "Sessão encerrada."));
     }

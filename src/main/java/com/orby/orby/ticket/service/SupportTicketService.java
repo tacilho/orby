@@ -146,6 +146,34 @@ public class SupportTicketService {
     }
 
     @Transactional
+    public void deleteNote(Long noteId) {
+        noteRepository.deleteById(noteId);
+    }
+
+    @Transactional
+    public TicketNote editNote(Long noteId, String text) {
+        TicketNote note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
+        note.setText(text);
+        return noteRepository.save(note);
+    }
+
+    @Transactional
+    public void deleteEquipment(Long equipmentId) {
+        equipmentRepository.deleteById(equipmentId);
+    }
+
+    @Transactional
+    public Equipment editEquipment(Long equipmentId, String name, String type, String description) {
+        Equipment equipment = equipmentRepository.findById(equipmentId)
+                .orElseThrow(() -> new RuntimeException("Equipment not found"));
+        equipment.setName(name);
+        equipment.setType(type);
+        equipment.setDescription(description);
+        return equipmentRepository.save(equipment);
+    }
+
+    @Transactional
     public SupportTicket standByTicket(Long ticketId, String reason) {
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));

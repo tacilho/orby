@@ -70,10 +70,16 @@ function Sidebar() {
   ] : [
     { path: '/', label: 'Chamados', icon: LayoutList, exact: true, badge: aguardandoCount },
     { path: '/chat', label: 'Atendimento', icon: MessageSquare },
-    { path: '/dashboard', label: 'Dashboard', icon: Monitor, exact: true },
+    ...(user?.role === 'ADMIN' || user?.viewReports !== false ? [
+      { path: '/dashboard', label: 'Dashboard', icon: Monitor, exact: true }
+    ] : []),
     { path: '/team', label: 'Equipe', icon: Users, exact: true },
-    { path: '/reports', label: 'Relatórios', icon: FileBarChart, exact: true },
-    { path: '/settings', label: 'Configurações', icon: Settings, exact: true },
+    ...(user?.role === 'ADMIN' || user?.viewReports !== false ? [
+      { path: '/reports', label: 'Relatórios', icon: FileBarChart, exact: true }
+    ] : []),
+    ...(user?.role === 'ADMIN' ? [
+      { path: '/settings', label: 'Configurações', icon: Settings, exact: true }
+    ] : []),
   ];
 
   const isActive = (item) => {
@@ -268,10 +274,10 @@ function AppContent() {
                         <>
                           <Route path="/" element={<Tickets />} />
                           <Route path="/chat" element={<Chat />} />
-                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/dashboard" element={user?.role === 'ADMIN' || user?.viewReports !== false ? <Dashboard /> : <Navigate to="/" replace />} />
                           <Route path="/team" element={<Team />} />
-                          <Route path="/reports" element={<Reports />} />
-                          <Route path="/settings" element={<AppSettings />} />
+                          <Route path="/reports" element={user?.role === 'ADMIN' || user?.viewReports !== false ? <Reports /> : <Navigate to="/" replace />} />
+                          <Route path="/settings" element={user?.role === 'ADMIN' ? <AppSettings /> : <Navigate to="/" replace />} />
                         </>
                       )}
                     </Routes>

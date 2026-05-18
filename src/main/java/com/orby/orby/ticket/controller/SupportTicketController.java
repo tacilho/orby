@@ -77,6 +77,36 @@ public class SupportTicketController {
                 request.getDescription()));
     }
 
+    @PutMapping("/notes/{noteId}")
+    public ResponseEntity<TicketNote> editNote(
+            @PathVariable Long noteId,
+            @RequestBody TicketNoteRequest request) {
+        return ResponseEntity.ok(supportTicketService.editNote(noteId, request.getText()));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    public ResponseEntity<Void> deleteNote(@PathVariable Long noteId) {
+        supportTicketService.deleteNote(noteId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/equipments/{equipmentId}")
+    public ResponseEntity<Equipment> editEquipment(
+            @PathVariable Long equipmentId,
+            @RequestBody TicketEquipmentRequest request) {
+        return ResponseEntity.ok(supportTicketService.editEquipment(
+                equipmentId, 
+                request.getName(), 
+                request.getType(), 
+                request.getDescription()));
+    }
+
+    @DeleteMapping("/equipments/{equipmentId}")
+    public ResponseEntity<Void> deleteEquipment(@PathVariable Long equipmentId) {
+        supportTicketService.deleteEquipment(equipmentId);
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/{id}/standby")
     public ResponseEntity<SupportTicket> standByTicket(
             @PathVariable Long id,
