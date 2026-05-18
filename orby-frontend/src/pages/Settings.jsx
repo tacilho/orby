@@ -24,7 +24,7 @@ function Settings() {
   const [savedStatus, setSavedStatus] = useState('');
 
   // QR Code Real States (Baileys Bridge)
-  const BRIDGE_URL = 'http://localhost:3333';
+  const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL || 'http://localhost:3333';
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [generatingQr, setGeneratingQr] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState(''); // '', 'connecting', 'qr_ready', 'connected'

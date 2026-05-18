@@ -33,6 +33,9 @@ public class WhatsAppWebhookController {
     @Value("${whatsapp.verify.token:}")
     private String verifyToken;
 
+    @Value("${whatsapp.app.secret:}")
+    private String appSecret;
+
     public WhatsAppWebhookController(ClientRepository clientRepository,
                                      SupportTicketRepository ticketRepository,
                                      com.orby.orby.admin.repository.SectorRepository sectorRepository,
@@ -60,8 +63,23 @@ public class WhatsAppWebhookController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Void> handleWebhook(
+            @RequestBody String rawBody,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Hub-Signature-256", required = false) String signature) {
         try {
+            if (!isSignatureValid(rawBody, signature)) {
+                System.err.println("[Webhook] Assinatura inválida. Requisição rejeitada.");
+                return ResponseEntity.status(403).build();
+            }
+            Map<String, Object> payload;
+            try {
+                payload = new com.fasterxml.jackson.databind.ObjectMapper().readValue(rawBody, 
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            } catch (Exception e) {
+                System.err.println("[Webhook] Erro ao parsear payload: " + e.getMessage());
+                return ResponseEntity.badRequest().build();
+            }
+
             System.out.println("Webhook received payload: " + payload);
             
             // 1. Extrair o phone_number_id do destinatário
@@ -249,5 +267,36 @@ public class WhatsAppWebhookController {
         // 4. Notify operators
         messagingTemplate.convertAndSend("/topic/chat/" + ticket.getId(), savedMessage);
         messagingTemplate.convertAndSend("/topic/tickets", ticket);
+    }
+
+    private boolean isSignatureValid(String body, String signatureHeader) {
+        if (appSecret == null || appSecret.isEmpty()) {
+            // Se o secret não estiver configurado, pula a validação (dev mode)
+            System.out.println("[Webhook] AVISO: whatsapp.app.secret não configurado. Validação de assinatura desabilitada.");
+            return true;
+        }
+        if (signatureHeader == null || !signatureHeader.startsWith("sha256=")) {
+            System.err.println("[Webhook] Assinatura ausente ou malformada.");
+            return false;
+        }
+        try {
+            String expectedSignature = signatureHeader.substring(7);
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            javax.crypto.spec.SecretKeySpec secretKey = new javax.crypto.spec.SecretKeySpec(
+                appSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"
+            );
+            mac.init(secretKey);
+            byte[] hash = mac.doFinal(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString().equals(expectedSignature);
+        } catch (Exception e) {
+            System.err.println("[Webhook] Erro ao validar assinatura: " + e.getMessage());
+            return false;
+        }
     }
 }

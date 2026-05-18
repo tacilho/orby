@@ -12,6 +12,7 @@ import MasterDashboard from './pages/MasterDashboard';
 import MasterTenants from './pages/MasterTenants';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 
 /* ── AuthGuard: redirects to /login if not authenticated ── */
@@ -254,25 +255,27 @@ function AppContent() {
               <div className="app-container">
                 <Sidebar />
                 <main className="main-content">
-                  <Routes>
-                    {isMaster ? (
-                      <>
-                        <Route path="/" element={<Navigate to="/master" replace />} />
-                        <Route path="/master" element={<MasterDashboard />} />
-                        <Route path="/master/tenants" element={<MasterTenants />} />
-                        <Route path="*" element={<Navigate to="/master" replace />} />
-                      </>
-                    ) : (
-                      <>
-                        <Route path="/" element={<Tickets />} />
-                        <Route path="/chat" element={<Chat />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/team" element={<Team />} />
-                        <Route path="/reports" element={<Reports />} />
-                        <Route path="/settings" element={<AppSettings />} />
-                      </>
-                    )}
-                  </Routes>
+                  <ErrorBoundary>
+                    <Routes>
+                      {isMaster ? (
+                        <>
+                          <Route path="/" element={<Navigate to="/master" replace />} />
+                          <Route path="/master" element={<MasterDashboard />} />
+                          <Route path="/master/tenants" element={<MasterTenants />} />
+                          <Route path="*" element={<Navigate to="/master" replace />} />
+                        </>
+                      ) : (
+                        <>
+                          <Route path="/" element={<Tickets />} />
+                          <Route path="/chat" element={<Chat />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/team" element={<Team />} />
+                          <Route path="/reports" element={<Reports />} />
+                          <Route path="/settings" element={<AppSettings />} />
+                        </>
+                      )}
+                    </Routes>
+                  </ErrorBoundary>
                 </main>
                 <ToastContainer />
               </div>

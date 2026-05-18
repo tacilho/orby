@@ -93,6 +93,7 @@ public class WhatsAppBridgeController {
             else if ("DOCUMENT".equals(messageType)) msgType = com.orby.orby.ticket.model.ChatMessageType.DOCUMENT;
 
             // Reutilizar toda a lógica do webhook controller existente (cria cliente, ticket, salva mensagem, notifica via WebSocket)
+            // O método handleIncomingMessage precisa ser acessível - vamos invocar diretamente
             webhookController.handleIncomingMessage(senderNumber, content != null ? content : "", msgType, null, null);
 
         } catch (Exception e) {

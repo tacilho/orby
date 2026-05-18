@@ -19,8 +19,8 @@ public class ClientController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Client> updateClient(@PathVariable Long id, @RequestBody Client clientData) {
-        String tenantId = TenantContext.getCurrentTenant();
-        if (tenantId == null) {
+        String tenantId = com.orby.orby.shared.tenant.TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isEmpty()) {
             tenantId = "default";
         }
         return clientRepository.findByIdAndTenantId(id, tenantId)
